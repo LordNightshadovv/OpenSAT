@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAT Progress Review"
+  short_description: "Review skills, transfer, and score variance"
+  default_prompt: "Use $sat-progress-review to review my SAT progress and next steps."

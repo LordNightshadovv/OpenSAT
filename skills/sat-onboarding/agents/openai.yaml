@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAT Onboarding"
+  short_description: "Set up a bilingual SAT learner model"
+  default_prompt: "Use $sat-onboarding to set up my bilingual SAT learner profile."

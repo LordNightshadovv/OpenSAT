@@ -1,0 +1,25 @@
+{
+  "fixture_id": "synthetic-rw-diagnostic-001",
+  "content_status": "wholly synthetic",
+  "assessment": {
+    "source": "manual",
+    "assessment_type": "synthetic_diagnostic_fixture",
+    "external_id": "synthetic-fixture-assessment-001",
+    "is_official": false
+  },
+  "question_event": {
+    "event_key": "synthetic-module-1-question-07",
+    "section": "reading-writing",
+    "module": "module-1",
+    "question_locator": "synthetic-fixture-07",
+    "result": "incorrect",
+    "provenance_type": "simulated",
+    "question_type": "rhetorical_synthesis",
+    "selected_answer": "B",
+    "correct_answer": "D",
+    "provisional_skill": "rhetorical-synthesis",
+    "abstract_context": {
+      "target_error_signature": "scope_expansion"
+    }
+  }
+}

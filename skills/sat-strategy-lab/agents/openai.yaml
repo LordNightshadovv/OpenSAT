@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAT Strategy Lab"
+  short_description: "Test SAT methods with evidence"
+  default_prompt: "Use $sat-strategy-lab to design a small SAT strategy trial."

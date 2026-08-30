@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAT Mistake Autopsy"
+  short_description: "Diagnose why an SAT error happened"
+  default_prompt: "Use $sat-mistake-autopsy to investigate one SAT mistake."

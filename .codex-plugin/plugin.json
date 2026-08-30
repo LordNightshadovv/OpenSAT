@@ -1,0 +1,37 @@
+{
+  "name": "opensat",
+  "version": "0.1.0+codex.20260830080507",
+  "description": "OpenSAT: a local-first bilingual SAT Reading and Writing diagnosis and deliberate-practice plugin.",
+  "author": {
+    "name": "OpenSAT"
+  },
+  "license": "MIT",
+  "keywords": [
+    "SAT",
+    "Reading and Writing",
+    "diagnosis",
+    "deliberate-practice",
+    "bilingual",
+    "local-first"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "OpenSAT",
+    "shortDescription": "Diagnose and practice SAT Reading and Writing",
+    "longDescription": "A local-first bilingual training laboratory that turns official assessment evidence and synthetic practice into cautious error hypotheses, targeted 20-minute sessions, and inspectable learner-model updates.",
+    "developerName": "OpenSAT",
+    "category": "Education",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Set up my SAT learner profile",
+      "Autopsy one SAT mistake",
+      "Build today's 20-minute sprint"
+    ],
+    "brandColor": "#1F3A5F"
+  },
+  "mcpServers": "./.mcp.json"
+}

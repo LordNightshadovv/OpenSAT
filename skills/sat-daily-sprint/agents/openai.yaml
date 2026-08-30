@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAT Daily Sprint"
+  short_description: "Build a focused 20-minute practice session"
+  default_prompt: "Use $sat-daily-sprint to build today’s focused SAT session."

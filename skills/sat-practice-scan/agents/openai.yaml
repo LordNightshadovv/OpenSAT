@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAT Practice Scan"
+  short_description: "Import read-only practice evidence safely"
+  default_prompt: "Use $sat-practice-scan to review an authorized practice result safely."

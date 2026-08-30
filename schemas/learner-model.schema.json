@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/opensat/learner-model.schema.json",
+  "title": "OpenSAT learner model export",
+  "type": "object",
+  "required": ["schema_version", "exported_at", "product", "learner", "records", "content_boundary"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "exported_at": {"type": "string"},
+    "product": {"type": "string", "const": "OpenSAT"},
+    "learner": {"type": "object", "required": ["learner_id", "preferred_language", "explanation_mode", "score_band_prior"]},
+    "records": {"type": "object"},
+    "content_boundary": {
+      "type": "object",
+      "required": ["official_content_persisted", "official_item_text_included", "simulated_label_only", "secrets_included"],
+      "properties": {
+        "official_content_persisted": {"const": false},
+        "official_item_text_included": {"const": false},
+        "simulated_label_only": {"const": true},
+        "secrets_included": {"const": false}
+      }
+    }
+  }
+}

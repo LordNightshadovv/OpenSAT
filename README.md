@@ -9,12 +9,14 @@ It is not a question bank, official-score predictor, credential scraper, or scor
 - Installable `.codex-plugin/plugin.json` manifest.
 - Six focused skills: onboarding, Practice Scan, Mistake Autopsy, Daily Sprint, Strategy Lab, and Progress Review.
 - Daily Sprint uses one or two coherent 20-minute persistence activities. Its practice surface may organize the questions into up to four purpose groups of at most four questions each without turning them into separate stop-and-restart blocks. It uses a native OpenSAT interface when available; otherwise its skill requires a Visualize practice surface with section/final submit controls. New Visualize questions stay hidden until their per-question timer starts; stopping freezes time while leaving the question and answer visible. Visualize sends content-free answers back to the assistant, and the OpenSAT MCP service persists only validated derived evidence.
-- Local stdio MCP companion with a coherent learner-model tool surface, including post-sprint on-demand recommendations and the user-authorized read-only Chrome scan boundary.
+- Local stdio MCP companion with a coherent learner-model tool surface, including a session-start local clock, due-review scheduling, post-sprint on-demand recommendations, and the user-authorized read-only Chrome scan boundary.
 - Python standard-library domain core and SQLite migrations.
 - Synthetic fixtures and tests; no copied College Board content.
 - Design documents covering product, architecture, capability modes, learner model, diagnostics, learning engine, browser safety, generation, privacy, pilot evaluation, and decisions.
 
 ## Personalization after a Daily Sprint
+
+Before a new practice session, OpenSAT calls `get_session_start_context`. It snapshots the system-local date and time, checks for reviews due today or overdue, and returns any matching scheduled-session blueprints. `build_daily_session` includes this same context automatically so calendar-based work cannot be skipped merely because a fresh sprint was requested. Due work is incorporated inside the 20-minute budget or explicitly deferred; it is never added as a hidden extension.
 
 The Daily Sprint is not the end of the learning loop. After a persisted sprint or activity result, OpenSAT can call `get_on_demand_recommendations` and return a small, optional set of targeted sessions. The recommendation target comes from the learner's current evidence and mistake autopsies; the score band mainly controls the amount of scaffolding and the difficulty of the material.
 

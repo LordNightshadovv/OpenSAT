@@ -30,6 +30,7 @@
     "record_diagnostic_hypothesis",
     "confirm_error_signature",
     "get_review_queue",
+    "get_session_start_context",
     "get_session_state",
     "get_difficulty_recommendation",
     "get_on_demand_recommendations",

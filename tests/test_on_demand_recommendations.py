@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from opensat import LabService
 from opensat.scheduling.on_demand import recommend_on_demand_sessions
+from opensat.storage.database import connect
 
 
 def event(
@@ -33,6 +35,79 @@ def event(
 
 
 class OnDemandRecommendationTests(unittest.TestCase):
+    def test_session_start_clock_surfaces_only_due_reviews(self) -> None:
+        fixed_now = datetime(2026, 9, 3, 8, 15, tzinfo=timezone(timedelta(hours=8)))
+        with tempfile.TemporaryDirectory(prefix="opensat-session-clock-") as directory:
+            data_dir = Path(directory) / "runtime"
+            service = LabService(data_dir, clock=lambda: fixed_now)
+            learner = service.initialize_learner(
+                preferred_language="english",
+                reading_writing_score=760,
+            )
+            learner_id = learner["learner"]["learner_id"]
+            assessment = service.record_assessment(
+                learner_id=learner_id,
+                source="manual",
+                assessment_type="clock-test",
+                external_id="clock-test-assessment",
+                is_official=False,
+                reading_writing_score=760,
+            )
+            due_event = service.record_question_event(
+                learner_id=learner_id,
+                assessment_id=assessment["assessment"]["assessment_id"],
+                event_key="due-inference",
+                section="reading-writing",
+                question_locator="due-inference",
+                result="correct_slow",
+                provenance_type="simulated",
+                time_seconds=100,
+                confidence=4,
+                provisional_skill="inference",
+                abstract_context={"slow_threshold_seconds": 60},
+            )["event"]
+            future_event = service.record_question_event(
+                learner_id=learner_id,
+                assessment_id=assessment["assessment"]["assessment_id"],
+                event_key="future-evidence",
+                section="reading-writing",
+                question_locator="future-evidence",
+                result="correct_slow",
+                provenance_type="simulated",
+                time_seconds=95,
+                confidence=4,
+                provisional_skill="command_of_evidence_quantitative",
+                abstract_context={"slow_threshold_seconds": 60},
+            )["event"]
+            connection, _ = connect(data_dir)
+            try:
+                connection.execute(
+                    "UPDATE review_queue SET due_at = ? WHERE event_id = ?",
+                    ("2026-09-03", due_event["event_id"]),
+                )
+                connection.execute(
+                    "UPDATE review_queue SET due_at = ? WHERE event_id = ?",
+                    ("2026-09-05", future_event["event_id"]),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            context = service.get_session_start_context(learner_id)
+            self.assertEqual(context["clock"]["local_date"], "2026-09-03")
+            self.assertEqual(context["clock"]["local_time"], "08:15:00")
+            self.assertEqual(context["clock"]["utc_offset"], "+08:00")
+            self.assertEqual(context["due_review_count"], 1)
+            self.assertEqual(context["due_today_count"], 1)
+            self.assertEqual(context["overdue_review_count"], 0)
+            self.assertEqual(context["due_reviews"][0]["event_id"], due_event["event_id"])
+            self.assertEqual(context["scheduled_session_count"], 1)
+            self.assertEqual(context["scheduled_sessions"][0]["target_skill"], "inference")
+
+            session = service.build_daily_session(learner_id)
+            self.assertEqual(session["session_start_context"]["checked_for_date"], "2026-09-03")
+            self.assertEqual(session["session_start_context"]["due_review_count"], 1)
+
     def test_high_accuracy_does_not_suppress_slow_correct_follow_up(self) -> None:
         result = recommend_on_demand_sessions(
             "750-800",
@@ -82,6 +157,68 @@ class OnDemandRecommendationTests(unittest.TestCase):
         )
         self.assertEqual(result["recommendation_count"], 0)
         self.assertIsNotNone(result["no_issue_message"])
+
+    def test_later_clean_transfer_suppresses_an_unconfirmed_older_miss(self) -> None:
+        older = event("older-miss", "incorrect", skill="sentence_boundaries")
+        older["created_at"] = "2026-08-29T09:00:00+00:00"
+        later = event("later-clean", "correct", skill="sentence_boundaries", confidence=5, seconds=20)
+        later["created_at"] = "2026-08-31T09:00:00+00:00"
+        result = recommend_on_demand_sessions("750-800", [later, older])
+        self.assertEqual(result["recommendation_count"], 0)
+
+    def test_completed_due_review_stays_closed_after_clean_transfer(self) -> None:
+        fixed_now = datetime(2026, 8, 31, 17, 0, tzinfo=timezone(timedelta(hours=8)))
+        with tempfile.TemporaryDirectory(prefix="opensat-review-complete-") as directory:
+            data_dir = Path(directory) / "runtime"
+            service = LabService(data_dir, clock=lambda: fixed_now)
+            learner = service.initialize_learner(preferred_language="english", reading_writing_score=760)
+            learner_id = learner["learner"]["learner_id"]
+            assessment = service.record_assessment(
+                learner_id=learner_id,
+                source="manual",
+                assessment_type="review-complete-test",
+                external_id="review-complete-test",
+                is_official=False,
+                reading_writing_score=760,
+            )
+            miss = service.record_question_event(
+                learner_id=learner_id,
+                assessment_id=assessment["assessment"]["assessment_id"],
+                event_key="boundary-miss",
+                section="reading-writing",
+                question_locator="boundary-miss",
+                result="incorrect",
+                provenance_type="simulated",
+                time_seconds=20,
+                confidence=5,
+                provisional_skill="sentence_boundaries",
+            )["event"]
+            connection, _ = connect(data_dir)
+            try:
+                connection.execute(
+                    "UPDATE review_queue SET due_at = ? WHERE event_id = ?",
+                    ("2026-08-31", miss["event_id"]),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            clean = service.record_question_event(
+                learner_id=learner_id,
+                assessment_id=assessment["assessment"]["assessment_id"],
+                event_key="boundary-clean-transfer",
+                section="reading-writing",
+                question_locator="boundary-clean-transfer",
+                result="correct",
+                provenance_type="simulated",
+                time_seconds=20,
+                confidence=5,
+                provisional_skill="sentence_boundaries",
+                abstract_context={"help_used": False},
+            )
+            self.assertEqual(len(clean["completed_review_ids"]), 1)
+            self.assertEqual(service.get_session_start_context(learner_id)["due_review_count"], 0)
+            self.assertEqual(service.get_on_demand_recommendations(learner_id)["recommendation_count"], 0)
 
     def test_due_review_without_recent_event_recommends_delayed_retrieval(self) -> None:
         result = recommend_on_demand_sessions(

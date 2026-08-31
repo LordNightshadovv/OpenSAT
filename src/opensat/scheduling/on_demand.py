@@ -236,7 +236,9 @@ def recommend_on_demand_sessions(
     if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 5:
         raise ValueError("limit must be an integer between 1 and 5")
 
-    event_list = [event for event in events if event.get("result") in ACTIONABLE_RESULTS]
+    all_events = list(events)
+    event_list = [event for event in all_events if event.get("result") in ACTIONABLE_RESULTS]
+    clean_events = [event for event in all_events if event.get("result") == "correct"]
     review_list = [review for review in review_queue if review.get("status", "open") == "open"]
     signature_by_code = {str(item.get("code")): item for item in signatures if item.get("code")}
     signature_by_event: dict[str, dict[str, Any]] = {}
@@ -266,6 +268,30 @@ def recommend_on_demand_sessions(
     for skill, signals in groups.items():
         actionable_signals = [signal for signal in signals if signal.get("result") in ACTIONABLE_RESULTS]
         review_signals = [signal for signal in signals if signal.get("result") == "review_due"]
+        latest_actionable = max(
+            (str(signal.get("created_at")) for signal in actionable_signals if signal.get("created_at")),
+            default=None,
+        )
+        latest_clean = max(
+            (
+                str(signal.get("created_at"))
+                for signal in clean_events
+                if _skill(signal) == skill and signal.get("created_at")
+            ),
+            default=None,
+        )
+        has_confirmed_signature = any(
+            signature_by_event.get(signal.get("event_id"), {}).get("status") == "confirmed"
+            for signal in actionable_signals
+        )
+        if (
+            latest_clean is not None
+            and latest_actionable is not None
+            and latest_clean > latest_actionable
+            and not review_signals
+            and not has_confirmed_signature
+        ):
+            continue
         score = sum(RESULT_WEIGHT.get(signal.get("result"), 1.0) for signal in actionable_signals)
         score += 1.5 * len(review_signals)
         if len(actionable_signals) >= 2:

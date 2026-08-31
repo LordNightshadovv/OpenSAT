@@ -9,13 +9,14 @@ description: Design or run a SAT Strategy Lab trial when a learner wants to comp
 
 Read `../../docs/learning-engine.md` and use `begin_strategy_trial`/`record_strategy_trial_result` when local MCP is available. A strategy is a hypothesis to test, not a universal trick.
 
-1. Define the strategy, applicable question types, exact procedure, proposed benefit, possible downside, and conditions where it should not be used.
-2. Choose comparable synthetic or authorized practice items. Do not copy official content.
-3. Define condition A and condition B, preferably paired or counterbalanced.
-4. Run a 3–5 minute trial by replacing part of the daily sprint, not adding work.
-5. Record accuracy, time, rereading, confidence, answer changes, and notable failure modes.
-6. Keep the result inconclusive until both conditions have enough observations. The local service requires at least two observations per condition for a provisional comparison.
-7. Personalize cautiously: recommend a method only when the evidence is consistent with the question type and downside conditions.
+1. Call `get_session_start_context` before beginning. If a due review is more urgent than the proposed comparison, surface that conflict; do not silently extend the 20-minute plan.
+2. Define the strategy, applicable question types, exact procedure, proposed benefit, possible downside, and conditions where it should not be used.
+3. Choose comparable synthetic or authorized practice items. Do not copy official content.
+4. Define condition A and condition B, preferably paired or counterbalanced.
+5. Run a 3–5 minute trial by replacing part of the daily sprint, not adding work.
+6. Record accuracy, time, rereading, confidence, answer changes, and notable failure modes.
+7. Keep the result inconclusive until both conditions have enough observations. The local service requires at least two observations per condition for a provisional comparison.
+8. Personalize cautiously: recommend a method only when the evidence is consistent with the question type and downside conditions.
 
 ## Example cards
 

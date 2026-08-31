@@ -9,19 +9,20 @@ description: Build an adaptive OpenSAT Daily Sprint when a learner asks what to 
 
 Read `../../docs/learning-engine.md`, `../../docs/learner-model.md`, `../../docs/question-generation.md`, `../../docs/reading-writing-item-style.md`, and `../../docs/visual-practice-surface.md`. Use `build_daily_session` when local MCP is available; otherwise produce a temporary plan and say it is not persisted.
 
-1. Load the current band prior, open review queue, recurring risks, test date, and `get_difficulty_recommendation`. Use the returned target tier, stretch tier/share, priority skills, correctness, timing, and calibration evidence for **future** item selection; never rewrite an already-issued block.
-2. Select the smallest high-value intervention. Do not optimize for question count.
-3. Build exactly 20 planned minutes in **one coherent activity or two substantial activities**. Do not schedule a chain of stop-and-restart mini-activities. Each activity must have a purpose, selection reason, success criterion, and exit condition.
-4. Adapt the mix:
+1. Before starting practice, call `get_session_start_context` (or use the same context returned by `build_daily_session`). Read its local clock, due and overdue reviews, and scheduled-session recommendations. If an unfinished issued sprint exists, resume it before creating a replacement; otherwise embed the highest-value due review in the 20-minute sprint or state why it is being deferred. Never silently add a due session beyond the planned budget.
+2. Load the current band prior, recurring risks, test date, and `get_difficulty_recommendation`. Use the returned target tier, stretch tier/share, priority skills, correctness, timing, and calibration evidence for **future** item selection; never rewrite an already-issued block.
+3. Select the smallest high-value intervention. Do not optimize for question count.
+4. Build exactly 20 planned minutes in **one coherent activity or two substantial activities**. Do not schedule a chain of stop-and-restart mini-activities. Each activity must have a purpose, selection reason, success criterion, and exit condition.
+5. Adapt the mix:
    - `600–640`: retrieval, worked example, blocked practice, transfer.
    - `650–690`: procedure reliability, delayed review, distractor analysis, guided fading.
    - `700–740`: interleaving, contrastive distractors, transfer, efficiency.
    - `750–800`: near-misses, calibration, realistic timing, fatigue and variance.
-5. Embed calibration, near-miss capture, and strategy observations inside the main activity when relevant. A brief review/reflection may be the second activity and records one observed fact, one uncertainty, and the next review.
-6. Load `accessibility_preferences.practice` from the learner profile. Treat `purpose_groups` as presentation labels inside the coherent activity, not as extra activities. Honor `preferred_min`, `preferred_max`, and `max_questions_per_group`; the safe surface ceiling is four groups and four questions per group.
-7. Specify and validate each Reading and Writing item through `../../docs/reading-writing-item-style.md`. For a 750–800 learner, center on hard items, apply the adaptive stretch share, and use lower tiers only for an explicit calibration or scaffold purpose.
-8. Record actual minutes, activity outcomes, confidence, and fatigue. Do not punish a learner for stopping at the planned exit condition.
-9. After a persisted sprint section or completed session, call `get_on_demand_recommendations`. Present the highest-value optional follow-up blueprints when recent evidence is incorrect, omitted, slow, uncertain, changed, help-dependent, or due for review. Do not suppress these recommendations just because aggregate accuracy is high; if no issue-specific evidence exists, say so explicitly.
+6. Embed calibration, near-miss capture, and strategy observations inside the main activity when relevant. A brief review/reflection may be the second activity and records one observed fact, one uncertainty, and the next review.
+7. Load `accessibility_preferences.practice` from the learner profile. Treat `purpose_groups` as presentation labels inside the coherent activity, not as extra activities. Honor `preferred_min`, `preferred_max`, and `max_questions_per_group`; the safe surface ceiling is four groups and four questions per group.
+8. Specify and validate each Reading and Writing item through `../../docs/reading-writing-item-style.md`. For a 750–800 learner, center on hard items, apply the adaptive stretch share, and use lower tiers only for an explicit calibration or scaffold purpose.
+9. Record actual minutes, activity outcomes, confidence, and fatigue. Do not punish a learner for stopping at the planned exit condition.
+10. After a persisted sprint section or completed session, call `get_on_demand_recommendations`. Present the highest-value optional follow-up blueprints when recent evidence is incorrect, omitted, slow, uncertain, changed, help-dependent, or due for review. Do not suppress these recommendations just because aggregate accuracy is high; if no issue-specific evidence exists, say so explicitly.
 
 ## Delivery surface
 

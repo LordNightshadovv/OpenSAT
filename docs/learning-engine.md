@@ -38,6 +38,12 @@ After a sprint or other response submission, call `get_on_demand_recommendations
 
 High overall accuracy must not suppress a recommendation when timing, confidence, answer changes, help use, or a due review indicates fragility. Clean, fast, calibrated responses with no open review appropriately produce no issue-specific session. Every recommendation states its evidence and remains provisional until an autopsy and recurring evidence support a broader diagnosis.
 
+## Session-start clock and scheduled reviews
+
+Every new practice session begins with one system-local clock snapshot through `get_session_start_context`. The snapshot records the checked local date, time, timezone label, and UTC offset, then resolves open review-queue entries whose `due_at` date is today or earlier. `build_daily_session` performs the same check automatically and returns the resulting context with the stored plan.
+
+Due reviews are surfaced as scheduled-session recommendations. They may be embedded in the normal 20-minute sprint or chosen as the smallest on-demand intervention, but they must not silently extend the learner's planned workload. A future review remains closed until its date arrives, and an unfinished issued sprint is resumed rather than rewritten merely because the calendar changed. One due review is marked completed when a later same-skill response is clean, confident, help-free, and on time; that successful transfer remains evidence against the earlier provisional mechanism rather than proof of broad mastery.
+
 ## Twenty-minute session budget
 
 The band-adaptive default is always exactly 20 planned minutes in one or two coherent persistence activities. Learning behaviors such as retrieval, calibration, and near-miss capture are embedded inside an activity rather than scheduled as separate context switches. The practice surface may label one to four purpose groups within those activities; these labels do not create extra timers, submissions, or stop-and-restart study blocks. Learner preferences control the group range, with a hard ceiling of four groups and four questions per group.

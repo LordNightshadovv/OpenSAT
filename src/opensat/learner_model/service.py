@@ -12,7 +12,7 @@ import uuid
 from hashlib import sha256
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from ..adaptation import recommend_practice_difficulty
 from ..diagnosis.taxonomy import validate_signature, validate_status, validate_transition
@@ -111,8 +111,14 @@ def _require_learner(connection: sqlite3.Connection, learner_id: str) -> None:
 class LabService:
     """Validated application operations used by all supported surfaces."""
 
-    def __init__(self, data_dir: str | Path | None = None):
+    def __init__(
+        self,
+        data_dir: str | Path | None = None,
+        *,
+        clock: Callable[[], datetime] | None = None,
+    ):
         self.data_dir = Path(data_dir).expanduser().resolve() if data_dir else None
+        self._clock = clock or (lambda: datetime.now().astimezone())
 
     def _open(self) -> tuple[sqlite3.Connection, DataPaths]:
         return connect(self.data_dir)
@@ -129,6 +135,7 @@ class LabService:
             "learner_model_import": True,
             "explicit_delete": True,
             "adaptive_practice_difficulty": "band_correctness_time_confidence_and_stability",
+            "session_start_clock": "system_local_date_time_with_due_review_gate",
             "visualize_question_timers": "schema_1_1_required_for_new_surfaces",
             "signed_in_chrome_inspection": False,
             "browser_practice_scan": "read_only_adapter_ready_requires_authorized_bridge",
@@ -564,6 +571,7 @@ class LabService:
             )
             if result in {"incorrect", "omitted", "correct_uncertain", "correct_slow", "correct_changed"}:
                 due = next_review_date(
+                    today=date.fromisoformat(self._clock_snapshot()["local_date"]),
                     prior_success=result not in {"incorrect", "omitted"},
                     confidence=confidence,
                     days_since_exposure=0,
@@ -590,8 +598,23 @@ class LabService:
                         utc_now(),
                     ),
                 )
+            stored_event = _row(
+                connection.execute(
+                    "SELECT * FROM question_events WHERE event_id = ?",
+                    (event_id,),
+                ).fetchone()
+            )
+            completed_review_ids = self._complete_due_review_after_clean_transfer(
+                connection,
+                learner_id,
+                stored_event or {},
+            )
             connection.commit()
-            return {"created": True, "event": _row(connection.execute("SELECT * FROM question_events WHERE event_id = ?", (event_id,)).fetchone())}
+            return {
+                "created": True,
+                "event": stored_event,
+                "completed_review_ids": completed_review_ids,
+            }
         finally:
             connection.close()
 
@@ -796,6 +819,155 @@ class LabService:
         finally:
             connection.close()
 
+    def _clock_snapshot(self) -> dict[str, str]:
+        current = self._clock()
+        if not isinstance(current, datetime):
+            raise TypeError("clock must return a datetime")
+        if current.tzinfo is None:
+            current = current.astimezone()
+        current = current.replace(microsecond=0)
+        offset = current.strftime("%z")
+        if len(offset) == 5:
+            offset = f"{offset[:3]}:{offset[3:]}"
+        timezone_name = getattr(current.tzinfo, "key", None) or current.tzname() or str(current.tzinfo)
+        return {
+            "checked_at": current.isoformat(),
+            "local_date": current.date().isoformat(),
+            "local_time": current.strftime("%H:%M:%S"),
+            "timezone": timezone_name,
+            "utc_offset": offset,
+            "source": "system_local_clock",
+        }
+
+    def _session_start_context(
+        self,
+        connection: sqlite3.Connection,
+        learner_id: str,
+        band: str,
+        *,
+        limit: int = 3,
+    ) -> dict[str, Any]:
+        """Check the local date once and resolve reviews scheduled for that date."""
+
+        clock = self._clock_snapshot()
+        local_date = clock["local_date"]
+        reviews = _rows(
+            connection.execute(
+                """SELECT * FROM review_queue
+                WHERE learner_id = ? AND status = 'open' AND due_at <= ?
+                ORDER BY due_at, recurrence_risk DESC""",
+                (learner_id, local_date),
+            ).fetchall()
+        )
+        event_ids = sorted({str(review["event_id"]) for review in reviews if review.get("event_id")})
+        events: list[dict[str, Any]] = []
+        if event_ids:
+            placeholders = ",".join("?" for _ in event_ids)
+            events = _rows(
+                connection.execute(
+                    f"""SELECT * FROM question_events
+                    WHERE learner_id = ? AND event_id IN ({placeholders})
+                    ORDER BY created_at DESC""",
+                    [learner_id, *event_ids],
+                ).fetchall()
+            )
+        signatures = _rows(
+            connection.execute(
+                "SELECT * FROM error_signatures WHERE learner_id = ? ORDER BY recurrence_count DESC",
+                (learner_id,),
+            ).fetchall()
+        )
+        scheduled = recommend_on_demand_sessions(
+            band,
+            events,
+            reviews,
+            signatures=signatures,
+            limit=limit,
+        )
+        return {
+            "clock": clock,
+            "checked_for_date": local_date,
+            "due_review_count": len(reviews),
+            "due_today_count": sum(review.get("due_at") == local_date for review in reviews),
+            "overdue_review_count": sum(str(review.get("due_at", "")) < local_date for review in reviews),
+            "due_reviews": reviews,
+            "scheduled_session_count": scheduled["recommendation_count"],
+            "scheduled_sessions": scheduled["recommendations"],
+            "no_due_session_message": (
+                None
+                if reviews
+                else "No review-queue session is due today. Continue the next planned sprint."
+            ),
+            "selection_rule": (
+                "Check the learner's local date before practice. Surface due or overdue reviews "
+                "without silently extending the daily 20-minute budget."
+            ),
+        }
+
+    def _complete_due_review_after_clean_transfer(
+        self,
+        connection: sqlite3.Connection,
+        learner_id: str,
+        event: dict[str, Any],
+    ) -> list[str]:
+        """Close one due review when a later clean same-skill transfer succeeds."""
+
+        context = event.get("abstract_context", {})
+        if (
+            event.get("result") != "correct"
+            or not isinstance(event.get("confidence"), int)
+            or event["confidence"] < 4
+            or context.get("help_used") is True
+            or not event.get("provisional_skill")
+        ):
+            return []
+        local_date = self._clock_snapshot()["local_date"]
+        review = connection.execute(
+            """SELECT review_id FROM review_queue
+            WHERE learner_id = ? AND status = 'open' AND skill = ? AND due_at <= ?
+              AND event_id != ? AND created_at <= ?
+            ORDER BY due_at, recurrence_risk DESC LIMIT 1""",
+            (
+                learner_id,
+                event["provisional_skill"],
+                local_date,
+                event["event_id"],
+                event["created_at"],
+            ),
+        ).fetchone()
+        if review is None:
+            return []
+        connection.execute(
+            "UPDATE review_queue SET status = 'completed' WHERE review_id = ?",
+            (review["review_id"],),
+        )
+        return [review["review_id"]]
+
+    def get_session_start_context(
+        self,
+        learner_id: str,
+        *,
+        section: str = "reading-writing",
+        limit: int = 3,
+    ) -> dict[str, Any]:
+        """Return the local clock and any review sessions due when practice starts."""
+
+        if section != "reading-writing":
+            raise ValueError("session-start scheduling currently supports reading-writing")
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 5:
+            raise ValueError("limit must be an integer between 1 and 5")
+        connection, _ = self._open()
+        try:
+            profile = self._get_learner(connection, learner_id)
+            return self._session_start_context(
+                connection,
+                learner_id,
+                profile["score_band_prior"],
+                limit=limit,
+            )
+        finally:
+            connection.close()
+
     def _difficulty_recommendation(
         self,
         connection: sqlite3.Connection,
@@ -839,6 +1011,11 @@ class LabService:
                 WHERE question_events.learner_id = ?
                   AND question_events.section = 'reading-writing'
                   AND COALESCE(assessments.taken_at, question_events.created_at) >= ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM review_queue resolved_review
+                      WHERE resolved_review.event_id = question_events.event_id
+                        AND resolved_review.status = 'completed'
+                  )
                 ORDER BY question_events.created_at DESC LIMIT 24""",
                 (learner_id, recent_cutoff[:10]),
             ).fetchall()
@@ -848,7 +1025,7 @@ class LabService:
                 """SELECT * FROM review_queue
                 WHERE learner_id = ? AND status = 'open' AND due_at <= ?
                 ORDER BY due_at, recurrence_risk DESC LIMIT 50""",
-                (learner_id, date.today().isoformat()),
+                (learner_id, self._clock_snapshot()["local_date"]),
             ).fetchall()
         )
         signatures = _rows(
@@ -926,6 +1103,7 @@ class LabService:
             band = band or profile["score_band_prior"]
             plan = build_daily_plan(band, session_mode=session_mode)
             difficulty = self._difficulty_recommendation(connection, learner_id, band)
+            session_start = self._session_start_context(connection, learner_id, band)
             session_id = _id("session")
             now = utc_now()
             connection.execute(
@@ -940,6 +1118,7 @@ class LabService:
                 "session_id": session_id,
                 "plan": plan.as_dict(),
                 "difficulty_recommendation": difficulty,
+                "session_start_context": session_start,
                 "stored": True,
             }
         finally:
@@ -1051,6 +1230,20 @@ class LabService:
             if existing is not None:
                 if existing.get("payload_digest") != digest:
                     raise ValueError("conflicting retry for an already persisted Visualize section")
+                completed_review_ids: list[str] = []
+                for event_id in existing.get("event_ids", []):
+                    event = _row(
+                        connection.execute(
+                            "SELECT * FROM question_events WHERE event_id = ? AND learner_id = ?",
+                            (event_id, learner_id),
+                        ).fetchone()
+                    )
+                    if event is not None:
+                        completed_review_ids.extend(
+                            self._complete_due_review_after_clean_transfer(connection, learner_id, event)
+                        )
+                if completed_review_ids:
+                    connection.commit()
                 follow_up = self._on_demand_recommendations(
                     connection,
                     learner_id,
@@ -1063,6 +1256,7 @@ class LabService:
                     "session_id": session["session_id"],
                     "section": submission["section"],
                     "event_count": len(existing.get("event_ids", [])),
+                    "completed_review_ids": completed_review_ids,
                     "strategy_conclusion": existing.get("strategy_conclusion"),
                     "on_demand_recommendations": follow_up,
                 }
@@ -1104,7 +1298,7 @@ class LabService:
                         assessment_id,
                         learner_id,
                         assessment_external_id,
-                        date.today().isoformat(),
+                        self._clock_snapshot()["local_date"],
                         _json({"surface": "visualize", "manifest_id": submission["manifest_id"]}),
                         _json({"mode": "structured_follow_up", "content_stored": False, "simulated": True}),
                         utc_now(),
@@ -1114,6 +1308,7 @@ class LabService:
                 assessment_id = assessment["assessment_id"]
 
             event_ids: list[str] = []
+            completed_review_ids: list[str] = []
             strategy_observations: list[dict[str, Any]] = []
             answer_by_id = {item["item_id"]: item for item in submission["answers"]}
             for metadata in validated["resolved_items"]:
@@ -1213,6 +1408,7 @@ class LabService:
                     )
                     if result in {"incorrect", "omitted", "correct_uncertain", "correct_slow", "correct_changed"}:
                         due = next_review_date(
+                            today=date.fromisoformat(self._clock_snapshot()["local_date"]),
                             prior_success=result not in {"incorrect", "omitted"},
                             confidence=answer["confidence"],
                             days_since_exposure=0,
@@ -1236,6 +1432,16 @@ class LabService:
                 else:
                     event_id = event["event_id"]
                 event_ids.append(event_id)
+                stored_event = _row(
+                    connection.execute(
+                        "SELECT * FROM question_events WHERE event_id = ?",
+                        (event_id,),
+                    ).fetchone()
+                )
+                if stored_event is not None:
+                    completed_review_ids.extend(
+                        self._complete_due_review_after_clean_transfer(connection, learner_id, stored_event)
+                    )
                 condition = metadata.get("strategy_condition")
                 if condition in {"A", "B"}:
                     strategy_observations.append({
@@ -1326,6 +1532,7 @@ class LabService:
                 "session_id": session["session_id"],
                 "section": section,
                 "event_count": len(event_ids),
+                "completed_review_ids": completed_review_ids,
                 "actual_minutes": total_minutes,
                 "completed": completed,
                 "strategy_conclusion": strategy_conclusion,

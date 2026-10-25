@@ -15,7 +15,7 @@ A future native OpenSAT interface replaces Visualize for the same sprint; the tw
 The Visualize surface should:
 
 - show the exact simulated-item label for every generated item;
-- collect answers, confidence, timing, answer changes, and near-miss signals without collecting credentials or page content;
+- collect answers, confidence, timing, apparent difficulty, answer changes, and near-miss signals without collecting credentials or page content;
 - keep one or two persistence sections, while allowing one to four labeled purpose groups inside them; purpose groups clarify why adjacent questions belong together and are not separate stop-and-restart activities;
 - place one to four questions in each purpose group and validate the complete grouping before rendering;
 - provide a section submit button by default, with question-level submission only where immediate feedback is the purpose of the whole block;
@@ -28,6 +28,7 @@ For every newly generated surface, each question uses a one-shot timer state mac
 - While `locked`, do not insert the question stem or choices into the visible document. Show only the question number and its Start control.
 - Clicking Start inserts that question, starts timing with `performance.now()`, and disables Start. There is no reset or pause control.
 - Clicking Stop freezes the elapsed time but leaves the question and selected answer visible. Answer editing after Stop is allowed, but must not restart or change the frozen time; `answer_changed` continues to reflect edits.
+- After the learner locks the final answer and stops the timer, require one apparent-difficulty tag—`routine`, `noticeable`, or `intimidating`—before section submission. Collect it before showing correctness, a rationale, or any other feedback. The tag describes how the completed item felt, not an objective difficulty judgment.
 - A section cannot submit while any included question is `locked` or `running`.
 - Use the reusable controller in `assets/visualize-question-timer.js` or reproduce its state contract inline. Do not use a phone/manual-time field for new surfaces.
 
@@ -39,7 +40,7 @@ The payload sent to Codex is intentionally content-free. The transient item mani
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "surface": "visualize",
   "manifest_id": "manifest_example",
   "session_id": "session_example",
@@ -50,6 +51,7 @@ The payload sent to Codex is intentionally content-free. The transient item mani
       "item_id": "daily-example-04",
       "selected_answer": "A",
       "confidence": 4,
+      "apparent_difficulty": "routine",
       "time_seconds": 42,
       "answer_changed": false,
       "almost_choice": null,
@@ -64,7 +66,7 @@ The payload sent to Codex is intentionally content-free. The transient item mani
 }
 ```
 
-`selected_answer` may be `null` for an omission. Confidence is 1–5; timing is positive and comes from the monotonic Visualize timer; `almost_choice` is `A`–`D` or `null`; and `submission_id` is the stable `<session_id>:<section>` key across safe retries. `manifest_id` binds the response to the transient answer-key and diagnostic metadata held outside the surface. The final section may submit its answers and a reflection object together. Version `1.0` remains accepted only so an already-issued legacy sprint can finish unchanged; all future surfaces use `1.1`.
+`selected_answer` may be `null` for an omission. Confidence is 1–5; apparent difficulty is `routine`, `noticeable`, or `intimidating`; timing is positive and comes from the monotonic Visualize timer; `almost_choice` is `A`–`D` or `null`; and `submission_id` is the stable `<session_id>:<section>` key across safe retries. `manifest_id` binds the response to the transient answer-key and diagnostic metadata held outside the surface. The final section may submit its answers and a reflection object together. Versions `1.0` and `1.1` remain accepted only so already-issued sprints can finish unchanged; all future surfaces use `1.2`.
 
 New surfaces may continue using `diagnostic_core` and `strategy_and_reflection` as persistence sections for a two-activity strategy sprint. Purpose-group labels live inside those sections and do not require additional submissions. The final button is labeled `Submit reflection and finish`. The answer key is never embedded in the Visualize fragment.
 

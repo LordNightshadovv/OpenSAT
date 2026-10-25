@@ -10,6 +10,7 @@
 - **Variable practice:** change surface form and context while preserving the target operation.
 - **Near/far transfer:** move from a small surface change to a different passage or rhetorical context only when evidence supports it.
 - **Metacognitive calibration:** capture confidence before answer reveal and compare it with evidence and result.
+- **Difficulty calibration:** after the learner locks an answer but before feedback, capture whether the item felt `routine`, `noticeable`, or `intimidating`. Compare that impression with correctness, confidence, time, and answer stability; do not ask the learner to assign an objective difficulty level.
 - **Targeted feedback:** name the mechanism and next guardrail; avoid generic “careless” feedback.
 - **Deliberate practice:** every item has a diagnostic purpose, selection reason, success criterion, and exit condition.
 
@@ -37,6 +38,8 @@ After a sprint or other response submission, call `get_on_demand_recommendations
 - Open review-queue entries without a recent response recommend delayed retrieval and near or mid transfer.
 
 High overall accuracy must not suppress a recommendation when timing, confidence, answer changes, help use, or a due review indicates fragility. Clean, fast, calibrated responses with no open review appropriately produce no issue-specific session. Every recommendation states its evidence and remains provisional until an autopsy and recurring evidence support a broader diagnosis.
+
+A routine-looking, high-confidence miss is a `silent danger` event and receives prompt contrastive review. A routine-looking correct response that is slow, uncertain, or changed is `concealed friction`. These labels describe calibration events, not fixed item difficulty or a confirmed learner defect. Require recurring evidence before changing a skill-level diagnosis.
 
 ## Session-start clock and scheduled reviews
 

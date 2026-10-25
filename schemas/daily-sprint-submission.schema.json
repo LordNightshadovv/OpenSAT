@@ -17,7 +17,7 @@
     "reflection"
   ],
   "properties": {
-    "schema_version": {"enum": ["1.0", "1.1"]},
+    "schema_version": {"enum": ["1.0", "1.1", "1.2"]},
     "surface": {"const": "visualize"},
     "manifest_id": {"type": "string", "minLength": 1, "maxLength": 128},
     "session_id": {"type": "string", "minLength": 1, "maxLength": 128},
@@ -50,6 +50,10 @@
     {
       "if": {"properties": {"schema_version": {"const": "1.1"}}},
       "then": {"properties": {"answers": {"items": {"$ref": "#/$defs/timed_answer"}}}}
+    },
+    {
+      "if": {"properties": {"schema_version": {"const": "1.2"}}},
+      "then": {"properties": {"answers": {"items": {"$ref": "#/$defs/calibrated_answer"}}}}
     }
   ],
   "$defs": {
@@ -105,6 +109,34 @@
         "item_id": {"type": "string", "minLength": 1, "maxLength": 128},
         "selected_answer": {"type": ["string", "null"], "pattern": "^[A-D]$"},
         "confidence": {"type": "integer", "minimum": 1, "maximum": 5},
+        "time_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+        "answer_changed": {"type": "boolean"},
+        "almost_choice": {"type": ["string", "null"], "pattern": "^[A-D]$"},
+        "help_used": {"type": "boolean"},
+        "timing_source": {"const": "visualize_monotonic_timer"},
+        "timer_state": {"const": "stopped"}
+      }
+    },
+    "calibrated_answer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "selected_answer",
+        "confidence",
+        "apparent_difficulty",
+        "time_seconds",
+        "answer_changed",
+        "almost_choice",
+        "help_used",
+        "timing_source",
+        "timer_state"
+      ],
+      "properties": {
+        "item_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "selected_answer": {"type": ["string", "null"], "pattern": "^[A-D]$"},
+        "confidence": {"type": "integer", "minimum": 1, "maximum": 5},
+        "apparent_difficulty": {"enum": ["routine", "noticeable", "intimidating"]},
         "time_seconds": {"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
         "answer_changed": {"type": "boolean"},
         "almost_choice": {"type": ["string", "null"], "pattern": "^[A-D]$"},

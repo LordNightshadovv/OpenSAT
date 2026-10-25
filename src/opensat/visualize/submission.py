@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from ..privacy.redaction import ensure_safe_metadata
+from ..domain.constants import APPARENT_DIFFICULTY_TAGS
 
 
-SUPPORTED_SCHEMA_VERSIONS = ("1.0", "1.1")
+SUPPORTED_SCHEMA_VERSIONS = ("1.0", "1.1", "1.2")
 SURFACE = "visualize"
 SECTIONS = ("diagnostic_core", "strategy_and_reflection")
 ANSWER_ALPHABET = ("A", "B", "C", "D")
@@ -34,6 +35,7 @@ LEGACY_ANSWER_KEYS = {
     "help_used",
 }
 TIMED_ANSWER_KEYS = LEGACY_ANSWER_KEYS | {"timing_source", "timer_state"}
+CALIBRATED_ANSWER_KEYS = TIMED_ANSWER_KEYS | {"apparent_difficulty"}
 REFLECTION_KEYS = {"observed_fact", "uncertainty", "next_review"}
 MANIFEST_ITEM_REQUIRED_KEYS = {
     "correct_answer",
@@ -113,7 +115,12 @@ def validate_visual_submission(
     for index, answer in enumerate(answers):
         if not isinstance(answer, dict):
             raise ValueError(f"answers[{index}] must be an object")
-        expected_answer_keys = TIMED_ANSWER_KEYS if schema_version == "1.1" else LEGACY_ANSWER_KEYS
+        if schema_version == "1.2":
+            expected_answer_keys = CALIBRATED_ANSWER_KEYS
+        elif schema_version == "1.1":
+            expected_answer_keys = TIMED_ANSWER_KEYS
+        else:
+            expected_answer_keys = LEGACY_ANSWER_KEYS
         _exact_keys(answer, expected_answer_keys, f"answers[{index}]")
         item_id = answer["item_id"]
         if not isinstance(item_id, str) or item_id not in items:
@@ -134,11 +141,13 @@ def validate_visual_submission(
         minimum_seconds = 0 if schema_version == "1.0" else 0.001
         if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not minimum_seconds <= seconds <= 3600:
             raise ValueError(f"time_seconds must be between {minimum_seconds} and 3600")
-        if schema_version == "1.1":
+        if schema_version in {"1.1", "1.2"}:
             if answer["timing_source"] != "visualize_monotonic_timer":
-                raise ValueError("schema 1.1 timing_source must be visualize_monotonic_timer")
+                raise ValueError("timed schema timing_source must be visualize_monotonic_timer")
             if answer["timer_state"] != "stopped":
-                raise ValueError("schema 1.1 requires each question timer to be stopped before submission")
+                raise ValueError("timed schemas require each question timer to be stopped before submission")
+        if schema_version == "1.2" and answer["apparent_difficulty"] not in APPARENT_DIFFICULTY_TAGS:
+            raise ValueError(f"apparent_difficulty must be one of {APPARENT_DIFFICULTY_TAGS}")
         if not isinstance(answer["answer_changed"], bool) or not isinstance(answer["help_used"], bool):
             raise ValueError("answer_changed and help_used must be booleans")
         metadata = items[item_id]

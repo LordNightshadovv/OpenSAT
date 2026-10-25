@@ -28,6 +28,7 @@ BAND_FLOOR_TIER = {
 CORRECT_RESULTS = {"correct", "correct_uncertain", "correct_slow", "correct_changed"}
 FRAGILE_RESULTS = {"correct_uncertain", "correct_slow", "correct_changed"}
 DEFAULT_SLOW_THRESHOLD_SECONDS = 60.0
+APPARENT_DIFFICULTY_TAGS = ("routine", "noticeable", "intimidating")
 
 
 def _tier_index(tier: str) -> int:
@@ -75,7 +76,7 @@ def recommend_practice_difficulty(
     floor = BAND_FLOOR_TIER[band]
     if not recent:
         return {
-            "policy_version": "1.0",
+            "policy_version": "1.1",
             "band_prior": band,
             "band_base_tier": base,
             "target_tier": base,
@@ -88,6 +89,12 @@ def recommend_practice_difficulty(
             "median_pace_ratio": None,
             "high_confidence_misses": 0,
             "fragile_correct_count": 0,
+            "apparent_difficulty_observation_count": 0,
+            "apparent_difficulty_distribution": {tag: 0 for tag in APPARENT_DIFFICULTY_TAGS},
+            "silent_danger_count": 0,
+            "concealed_friction_count": 0,
+            "routine_clean_correct_count": 0,
+            "routine_miscalibration_rate": None,
             "priority_skills": [],
             "skill_stage_evidence": skill_stages,
             "skill_overrides": {},
@@ -104,6 +111,33 @@ def recommend_practice_difficulty(
         for event in recent
     )
     fragile_correct_count = sum(event.get("result") in FRAGILE_RESULTS for event in recent)
+    appearance_distribution = Counter(
+        str(event.get("apparent_difficulty"))
+        for event in recent
+        if event.get("apparent_difficulty") in APPARENT_DIFFICULTY_TAGS
+    )
+    silent_danger_count = sum(
+        event.get("apparent_difficulty") == "routine"
+        and event.get("result") in {"incorrect", "omitted"}
+        and isinstance(event.get("confidence"), int)
+        and event["confidence"] >= 4
+        for event in recent
+    )
+    concealed_friction_count = sum(
+        event.get("apparent_difficulty") == "routine"
+        and event.get("result") in FRAGILE_RESULTS
+        for event in recent
+    )
+    routine_clean_correct_count = sum(
+        event.get("apparent_difficulty") == "routine"
+        and event.get("result") == "correct"
+        for event in recent
+    )
+    routine_tagged_count = appearance_distribution["routine"]
+    routine_miscalibration_rate = (
+        round((silent_danger_count + concealed_friction_count) / routine_tagged_count, 3)
+        if routine_tagged_count else None
+    )
     help_count = sum(bool(_context(event).get("help_used")) for event in recent)
     changed_count = sum(bool(event.get("answer_changed")) for event in recent)
 
@@ -152,7 +186,8 @@ def recommend_practice_difficulty(
     directive = "Hold the band-based level while collecting more correctness, timing, and calibration evidence."
 
     if sufficiently_observed:
-        if accuracy >= 0.85 and fast_enough and high_confidence_misses == 0 and help_count == 0:
+        if (accuracy >= 0.85 and fast_enough and high_confidence_misses == 0
+                and concealed_friction_count == 0 and help_count == 0):
             target = _shift(base, 1, floor)
             stretch_share = 0.35
             evidence_status = "ready_for_level_increase"
@@ -174,7 +209,7 @@ def recommend_practice_difficulty(
             directive = "Keep the current centre difficulty and target recurring fragile or incorrect skills with near transfer."
 
     return {
-        "policy_version": "1.0",
+        "policy_version": "1.1",
         "band_prior": band,
         "band_base_tier": base,
         "target_tier": target,
@@ -188,6 +223,14 @@ def recommend_practice_difficulty(
         "pace_reference": "manifest_item_thresholds" if used_manifest_threshold else "60_second_internal_heuristic",
         "high_confidence_misses": high_confidence_misses,
         "fragile_correct_count": fragile_correct_count,
+        "apparent_difficulty_observation_count": sum(appearance_distribution.values()),
+        "apparent_difficulty_distribution": {
+            tag: appearance_distribution[tag] for tag in APPARENT_DIFFICULTY_TAGS
+        },
+        "silent_danger_count": silent_danger_count,
+        "concealed_friction_count": concealed_friction_count,
+        "routine_clean_correct_count": routine_clean_correct_count,
+        "routine_miscalibration_rate": routine_miscalibration_rate,
         "help_used_count": help_count,
         "answer_changed_count": changed_count,
         "priority_skills": priority_skills,

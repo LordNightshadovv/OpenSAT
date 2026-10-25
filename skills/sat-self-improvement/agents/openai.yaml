@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenSAT Self-Improvement"
+  short_description: "Test and review plugin improvements"
+  default_prompt: "Use $sat-self-improvement to evaluate one OpenSAT plugin improvement."

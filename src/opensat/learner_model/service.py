@@ -17,6 +17,7 @@ from typing import Any, Callable, Iterable
 from ..adaptation import recommend_practice_difficulty
 from ..diagnosis.taxonomy import validate_signature, validate_status, validate_transition
 from ..domain.constants import (
+    APPARENT_DIFFICULTY_TAGS,
     ASSESSMENT_SOURCES,
     DIAGNOSIS_STATUSES,
     ERROR_SIGNATURES,
@@ -134,9 +135,10 @@ class LabService:
             "learner_model_export": True,
             "learner_model_import": True,
             "explicit_delete": True,
-            "adaptive_practice_difficulty": "band_correctness_time_confidence_and_stability",
+            "adaptive_practice_difficulty": "band_correctness_time_confidence_apparent_difficulty_and_stability",
+            "apparent_difficulty_tag": "post_answer_pre_feedback_routine_noticeable_intimidating",
             "session_start_clock": "system_local_date_time_with_due_review_gate",
-            "visualize_question_timers": "schema_1_1_required_for_new_surfaces",
+            "visualize_question_timers": "schema_1_2_timer_and_apparent_difficulty_required_for_new_surfaces",
             "signed_in_chrome_inspection": False,
             "browser_practice_scan": "read_only_adapter_ready_requires_authorized_bridge",
             "chrome_read_only_adapter": {
@@ -506,6 +508,7 @@ class LabService:
         time_seconds: float | None = None,
         time_source: str | None = None,
         confidence: int | None = None,
+        apparent_difficulty: str | None = None,
         flagged: bool = False,
         answer_changed: bool = False,
         selected_answer: str | None = None,
@@ -520,6 +523,8 @@ class LabService:
             raise ValueError(f"provenance_type must be one of {PROVENANCE_TYPES}")
         if confidence is not None:
             _require_int(confidence, "confidence", 1, 5)
+        if apparent_difficulty is not None and apparent_difficulty not in APPARENT_DIFFICULTY_TAGS:
+            raise ValueError(f"apparent_difficulty must be one of {APPARENT_DIFFICULTY_TAGS}")
         if time_seconds is not None and (not isinstance(time_seconds, (int, float)) or time_seconds < 0):
             raise ValueError("time_seconds must be non-negative")
         abstract_context = dict(abstract_context or {})
@@ -543,9 +548,9 @@ class LabService:
                 """INSERT INTO question_events
                 (event_id, learner_id, assessment_id, event_key, section, module,
                  question_locator, result, time_seconds, time_source, confidence, flagged,
-                 answer_changed, selected_answer, correct_answer, provisional_skill,
+                 apparent_difficulty, answer_changed, selected_answer, correct_answer, provisional_skill,
                  provenance_type, content_fingerprint, abstract_context_json, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     event_id,
                     learner_id,
@@ -559,6 +564,7 @@ class LabService:
                     time_source,
                     confidence,
                     int(flagged),
+                    apparent_difficulty,
                     int(answer_changed),
                     selected_answer,
                     correct_answer,
@@ -1383,10 +1389,10 @@ class LabService:
                         """INSERT INTO question_events
                         (event_id, learner_id, assessment_id, event_key, section, module,
                          question_locator, result, time_seconds, time_source, confidence, flagged,
-                         answer_changed, selected_answer, correct_answer, provisional_skill,
+                         apparent_difficulty, answer_changed, selected_answer, correct_answer, provisional_skill,
                          provenance_type, content_fingerprint, abstract_context_json, created_at)
                         VALUES (?, ?, ?, ?, 'reading-writing', ?, ?, ?, ?, ?, ?, 0,
-                                ?, ?, ?, ?, 'simulated', NULL, ?, ?)""",
+                                ?, ?, ?, ?, ?, 'simulated', NULL, ?, ?)""",
                         (
                             event_id,
                             learner_id,
@@ -1396,8 +1402,9 @@ class LabService:
                             item_id,
                             result,
                             answer["time_seconds"],
-                            "visualize_monotonic_timer" if submission["schema_version"] == "1.1" else "learner_reported",
+                            "visualize_monotonic_timer" if submission["schema_version"] in {"1.1", "1.2"} else "learner_reported",
                             answer["confidence"],
+                            answer.get("apparent_difficulty"),
                             int(answer["answer_changed"]),
                             selected,
                             metadata["correct_answer"],
@@ -1731,10 +1738,10 @@ class LabService:
                     """INSERT OR IGNORE INTO question_events
                     (event_id, learner_id, assessment_id, event_key, section, module,
                      question_locator, result, time_seconds, time_source, confidence, flagged,
-                     answer_changed, selected_answer, correct_answer, provisional_skill,
+                     apparent_difficulty, answer_changed, selected_answer, correct_answer, provisional_skill,
                      provenance_type, content_fingerprint, abstract_context_json, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (event["event_id"], learner_id, event.get("assessment_id"), event["event_key"], event["section"], event.get("module"), event["question_locator"], event["result"], event.get("time_seconds"), event.get("time_source"), event.get("confidence"), int(event.get("flagged", False)), int(event.get("answer_changed", False)), event.get("selected_answer"), event.get("correct_answer"), event.get("provisional_skill"), event["provenance_type"], event.get("content_fingerprint"), _json(event.get("abstract_context", {})), event.get("created_at", utc_now())),
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (event["event_id"], learner_id, event.get("assessment_id"), event["event_key"], event["section"], event.get("module"), event["question_locator"], event["result"], event.get("time_seconds"), event.get("time_source"), event.get("confidence"), int(event.get("flagged", False)), event.get("apparent_difficulty"), int(event.get("answer_changed", False)), event.get("selected_answer"), event.get("correct_answer"), event.get("provisional_skill"), event["provenance_type"], event.get("content_fingerprint"), _json(event.get("abstract_context", {})), event.get("created_at", utc_now())),
                 )
                 imported["question_events"] = imported.get("question_events", 0) + 1
             connection.commit()

@@ -29,6 +29,7 @@ QUESTION_RESULTS = (
 DIAGNOSIS_STATUSES = ("provisional", "supported", "confirmed", "rejected")
 SKILL_STAGES = ("recognize", "explain", "execute", "transfer", "stabilize")
 TRANSFER_DISTANCES = ("near", "mid", "far")
+APPARENT_DIFFICULTY_TAGS = ("routine", "noticeable", "intimidating")
 SIMULATED_LABEL = "Simulated SAT-style practice — not an official College Board question"
 
 

@@ -2,6 +2,8 @@
 
 This contract governs wholly original OpenSAT items. It uses College Board's public framework to match the assessed operation, stimulus form, stem family, and distractor logic. It does **not** authorize copying, lightly paraphrasing, or storing official questions. Third-party difficult-question collections may inform abstract difficulty mechanisms only.
 
+For inspectable examples of these operations and their plausible wrong-answer mechanisms, read [`public-question-patterns-2026.md`](public-question-patterns-2026.md). Its recalled-item leads are unverified and cannot supply an answer key. Transfer only the abstract constraint into a new item.
+
 ## Authoritative public references
 
 - [College Board Student Question Bank: Reading and Writing question stems](https://satsuite.collegeboard.org/practice/student-question-bank/reading-writing)

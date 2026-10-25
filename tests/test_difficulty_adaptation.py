@@ -13,6 +13,7 @@ def event(
     threshold: float = 60,
     confidence: int = 4,
     help_used: bool = False,
+    apparent_difficulty: str | None = None,
 ) -> dict[str, object]:
     return {
         "result": result,
@@ -20,6 +21,7 @@ def event(
         "time_seconds": seconds,
         "confidence": confidence,
         "answer_changed": False,
+        "apparent_difficulty": apparent_difficulty,
         "abstract_context": {
             "slow_threshold_seconds": threshold,
             "help_used": help_used,
@@ -75,6 +77,25 @@ class DifficultyAdaptationTests(unittest.TestCase):
             recommendation["skill_overrides"]["sentence_boundaries"]["transfer"],
             "near_scaffolded",
         )
+
+    def test_routine_high_confidence_miss_is_silent_danger(self) -> None:
+        events = [event("correct", apparent_difficulty="routine") for _ in range(4)] + [
+            event("incorrect", confidence=5, apparent_difficulty="routine")
+        ]
+        recommendation = recommend_practice_difficulty("750-800", events)
+        self.assertEqual(recommendation["silent_danger_count"], 1)
+        self.assertEqual(recommendation["routine_clean_correct_count"], 4)
+        self.assertEqual(recommendation["routine_miscalibration_rate"], 0.2)
+        self.assertEqual(recommendation["apparent_difficulty_distribution"]["routine"], 5)
+
+    def test_routine_fragile_correct_is_concealed_friction(self) -> None:
+        events = [event("correct", apparent_difficulty="routine") for _ in range(4)] + [
+            event("correct_changed", apparent_difficulty="routine")
+        ]
+        recommendation = recommend_practice_difficulty("750-800", events)
+        self.assertEqual(recommendation["silent_danger_count"], 0)
+        self.assertEqual(recommendation["concealed_friction_count"], 1)
+        self.assertNotEqual(recommendation["evidence_status"], "ready_for_level_increase")
 
 
 if __name__ == "__main__":

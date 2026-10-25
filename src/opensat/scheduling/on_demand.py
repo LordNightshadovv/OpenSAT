@@ -41,12 +41,20 @@ def _skill(event: dict[str, Any]) -> str:
 
 def _evidence(event: dict[str, Any]) -> dict[str, Any]:
     context = _context(event)
+    silent_danger = (
+        event.get("apparent_difficulty") == "routine"
+        and event.get("result") in {"incorrect", "omitted"}
+        and isinstance(event.get("confidence"), int)
+        and event["confidence"] >= 4
+    )
     return {
         "event_id": event.get("event_id"),
         "result": event.get("result"),
         "skill": event.get("provisional_skill"),
         "time_seconds": event.get("time_seconds"),
         "confidence": event.get("confidence"),
+        "apparent_difficulty": event.get("apparent_difficulty"),
+        "silent_danger": silent_danger,
         "answer_changed": bool(event.get("answer_changed")),
         "help_used": bool(context.get("help_used")),
         "intended_difficulty": context.get("intended_difficulty"),
@@ -303,6 +311,8 @@ def recommend_on_demand_sessions(
                 and signal["confidence"] >= 4
             ):
                 score += 1.0
+                if signal.get("apparent_difficulty") == "routine":
+                    score += 1.5
             context = _context(signal)
             if context.get("help_used"):
                 score += 0.5
@@ -329,6 +339,7 @@ def recommend_on_demand_sessions(
             and signature_by_code.get(str(target_signature), {}).get("status") == "confirmed"
         )
         evidence = [_evidence(signal) for signal in actionable_signals]
+        silent_danger = any(item.get("silent_danger") for item in evidence)
         evidence.extend(
             {
                 "event_id": signal.get("event_id"),
@@ -359,7 +370,9 @@ def recommend_on_demand_sessions(
             "material_guidance": _band_material_guidance(band, session_type),
             "session_blueprint": shape,
             "selection_reason": (
-                "Accuracy is not the only signal: this skill has slow, uncertain, changed, incorrect, omitted, or due-review evidence."
+                "A routine-looking high-confidence miss created a silent-danger signal; prioritize calibration and the exact discriminating evidence."
+                if silent_danger
+                else "Accuracy is not the only signal: this skill has slow, uncertain, changed, incorrect, omitted, or due-review evidence."
                 if actionable_signals
                 else "An open review is due even though no recent issue-specific response is available."
             ),

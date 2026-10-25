@@ -1,17 +1,20 @@
 # OpenSAT
 
-OpenSAT is a local-first, bilingual SAT Reading and Writing diagnostic and deliberate-practice prototype. It models why a learner loses points, keeps hypotheses provisional until recurring evidence exists, and assigns targeted work inside a 20-minute daily budget. Future practice difficulty combines the learner's score-band prior with recent correctness, timing, confidence, response stability, and help use.
+OpenSAT is a local-first, bilingual SAT Reading and Writing diagnostic and deliberate-practice prototype. It models why a learner loses points, keeps hypotheses provisional until recurring evidence exists, and assigns targeted work inside a 20-minute daily budget. Future practice difficulty combines the learner's score-band prior with recent correctness, timing, confidence, post-answer pre-feedback apparent difficulty, response stability, and help use.
 
 It is not a question bank, official-score predictor, credential scraper, or score-gain guarantee.
 
 ## What is included
 
 - Installable `.codex-plugin/plugin.json` manifest.
-- Six focused skills: onboarding, Practice Scan, Mistake Autopsy, Daily Sprint, Strategy Lab, and Progress Review.
+- Eight focused skills: onboarding, Practice Scan, Mistake Autopsy, Daily Sprint, Strategy Lab, Progress Review, Question Pattern Research, and plugin Self-Improvement.
 - Daily Sprint uses one or two coherent 20-minute persistence activities. Its practice surface may organize the questions into up to four purpose groups of at most four questions each without turning them into separate stop-and-restart blocks. It uses a native OpenSAT interface when available; otherwise its skill requires a Visualize practice surface with section/final submit controls. New Visualize questions stay hidden until their per-question timer starts; stopping freezes time while leaving the question and answer visible. Visualize sends content-free answers back to the assistant, and the OpenSAT MCP service persists only validated derived evidence.
+- After an answer is locked and its timer is stopped, new practice surfaces collect a lightweight apparent-difficulty tag (`routine`, `noticeable`, or `intimidating`) before feedback. OpenSAT derives silent-danger and concealed-friction signals from that tag plus outcome evidence; it does not treat the tag as an objective item-difficulty label.
 - Local stdio MCP companion with a coherent learner-model tool surface, including a session-start local clock, due-review scheduling, post-sprint on-demand recommendations, and the user-authorized read-only Chrome scan boundary.
 - Python standard-library domain core and SQLite migrations.
 - Synthetic fixtures and tests; no copied College Board content.
+- A sourced [public-question pattern index](docs/public-question-patterns-2026.md) that separates official released examples from dated, unverified exam recollections and turns their reasoning traps into original practice design.
+- A bounded plugin-improvement gate that freezes one candidate, checks paired training and held-out receipts against capability floors and token reduction, and keeps learner data out of the research loop. See [`docs/self-improvement.md`](docs/self-improvement.md). No automatic or continuous self-modification runs in the installed plugin.
 - Design documents covering product, architecture, capability modes, learner model, diagnostics, learning engine, browser safety, generation, privacy, pilot evaluation, and decisions.
 
 ## Personalization after a Daily Sprint
@@ -71,14 +74,14 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' '{"js
 
 ## Install locally in Codex
 
-This repository was scaffolded without changing the personal marketplace. The current Codex CLI installs from a configured marketplace snapshot rather than a raw filesystem path. After reviewing the source, stage this folder as `plugins/opensat` under a local marketplace root, add that marketplace once, and install the plugin:
+The current personal marketplace points `opensat@personal` at `/Users/vold/plugins/opensat`, which resolves to this source repository. After editing and validating the source, use the plugin-creator cachebuster helper and reinstall:
 
 ```bash
-codex plugin marketplace add /absolute/path/to/local-marketplace-root
-codex plugin add opensat@<marketplace-name>
+python3 /Users/vold/.codex/skills/.system/plugin-creator/scripts/update_plugin_cachebuster.py /Users/vold/plugins/opensat
+codex plugin add opensat@personal
 ```
 
-The marketplace JSON must point to `./plugins/opensat` and include `policy.installation`, `policy.authentication`, and `category`. Use the local plugin-creator tooling to generate that entry rather than hand-editing an existing personal marketplace. Start a new thread after installation so the client reloads skills and MCP tools. Cross-surface availability must be verified in the target client.
+Check `codex plugin list` and the installed cache against the source. Do not hand-edit the marketplace JSON. Start a new chat after installation so the client reloads skills and MCP tools. Cross-surface availability must be verified in the target client.
 
 ## Current boundaries
 
@@ -91,5 +94,7 @@ Practice Scan has a host-neutral, user-authorized, read-only Chrome adapter with
 - [`docs/practice-scan.md`](docs/practice-scan.md)
 - [`docs/privacy-and-content-boundaries.md`](docs/privacy-and-content-boundaries.md)
 - [`docs/pilot-and-evaluation-plan.md`](docs/pilot-and-evaluation-plan.md)
+- [`docs/self-improvement.md`](docs/self-improvement.md)
 - [`docs/visual-practice-surface.md`](docs/visual-practice-surface.md)
 - [`docs/reading-writing-item-style.md`](docs/reading-writing-item-style.md)
+- [`docs/public-question-patterns-2026.md`](docs/public-question-patterns-2026.md)

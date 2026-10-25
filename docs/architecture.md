@@ -2,11 +2,11 @@
 
 ## Selected split
 
-The package is one installable plugin with six focused skills and one local MCP companion:
+The package is one installable plugin with eight focused skills and one local MCP companion:
 
 ```mermaid
 flowchart TD
-    User["Student or coach"] --> Skills["Six focused skills"]
+    User["Student or coach"] --> Skills["Eight focused skills"]
     Skills --> Surface["Native interface or Visualize"]
     Surface --> MCP["Local MCP companion"]
     MCP --> Service["Validated LabService"]
@@ -20,7 +20,7 @@ flowchart TD
 ## Components
 
 - `.codex-plugin/plugin.json`: installable plugin manifest and focused-skill discovery.
-- `skills/`: onboarding, practice scan, mistake autopsy, daily sprint, strategy lab, and progress review. Each skill is small enough to trigger for a recognizable task and all use the same learner model.
+- `skills/`: onboarding, practice scan, mistake autopsy, daily sprint, strategy lab, progress review, public-question pattern research, and a separate plugin self-improvement workflow. Learner-facing skills use the same learner model; research records public source links and abstract mechanisms, while self-improvement works only on plugin source and synthetic/public evaluation artifacts.
 - `.mcp.json`: local stdio server wiring. It launches `scripts/mcp_server.py` from the plugin root.
 - `src/opensat/practice_scan/`: the user-authorized, read-only Chrome observation boundary, prompt-injection gates, metadata allowlist, transient snapshot disposal, and resumable cursors.
 - `src/opensat/domain/`: vocabulary, band priors, content labels, and small models.
@@ -31,6 +31,7 @@ flowchart TD
 - `src/opensat/generation/`: item specification and multi-stage validation gate.
 - `src/opensat/providers/`: future provider contracts, including the non-live Gemini module stub.
 - `scripts/`: CLI and MCP entrypoints.
+- `scripts/self_improvement.py`: freeze and receipt gate for a bounded plugin-development experiment; it is not an MCP learner-data tool.
 - `docs/visual-practice-surface.md` and `schemas/daily-sprint-submission.schema.json`: the no-GUI Visualize interaction contract and content-free answer payload.
 - `docs/`, `schemas/`, `migrations/`, `tests/`, `examples/`: reviewable contracts and synthetic validation material.
 

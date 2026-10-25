@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAT Question Pattern Research"
+  short_description: "Analyze sourced SAT traps and question patterns"
+  default_prompt: "Use $sat-question-pattern-research to analyze public SAT Reading and Writing questions."

@@ -35,6 +35,23 @@ def event(
 
 
 class OnDemandRecommendationTests(unittest.TestCase):
+    def test_routine_high_confidence_miss_is_prioritized_as_silent_danger(self) -> None:
+        result = recommend_on_demand_sessions(
+            "750-800",
+            [{
+                "event_id": "silent-1",
+                "result": "incorrect",
+                "provisional_skill": "evidence_selection",
+                "confidence": 5,
+                "apparent_difficulty": "routine",
+                "provenance_type": "simulated",
+                "abstract_context": {},
+            }],
+        )
+        recommendation = result["recommendations"][0]
+        self.assertTrue(recommendation["evidence"][0]["silent_danger"])
+        self.assertIn("silent-danger", recommendation["selection_reason"])
+
     def test_session_start_clock_surfaces_only_due_reviews(self) -> None:
         fixed_now = datetime(2026, 9, 3, 8, 15, tzinfo=timezone(timedelta(hours=8)))
         with tempfile.TemporaryDirectory(prefix="opensat-session-clock-") as directory:

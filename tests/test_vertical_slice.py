@@ -49,7 +49,7 @@ class VerticalSliceTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
-    def make_event(self, key: str, result: str = "incorrect") -> dict:
+    def make_event(self, key: str, result: str = "incorrect", apparent_difficulty: str | None = None) -> dict:
         return self.service.record_question_event(
             learner_id=self.learner_id,
             assessment_id=self.assessment_id,
@@ -60,6 +60,7 @@ class VerticalSliceTests(unittest.TestCase):
             result=result,
             provenance_type="simulated",
             confidence=4,
+            apparent_difficulty=apparent_difficulty,
             time_seconds=72,
             selected_answer="B",
             correct_answer="D",
@@ -73,7 +74,7 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertTrue(paths.database.exists())
         connection, _ = connect(self.data_dir)
         try:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 1)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
             self.assertIsNotNone(connection.execute("SELECT 1 FROM learners LIMIT 1").fetchone())
         finally:
             connection.close()
@@ -87,6 +88,22 @@ class VerticalSliceTests(unittest.TestCase):
         connection, _ = connect(self.data_dir / "migration")
         connection.close()
         self.assertTrue(list(paths.backups.glob("opensat_pre_migration_v0_*.sqlite3")))
+
+    def test_v1_migration_adds_apparent_difficulty_column(self) -> None:
+        paths = ensure_data_layout(self.data_dir / "migration-v1")
+        old = sqlite3.connect(paths.database)
+        old.execute("CREATE TABLE question_events (event_id TEXT PRIMARY KEY)")
+        old.execute("PRAGMA user_version = 1")
+        old.commit()
+        old.close()
+        connection, _ = connect(self.data_dir / "migration-v1")
+        try:
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(question_events)")}
+            self.assertIn("apparent_difficulty", columns)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+        finally:
+            connection.close()
+        self.assertTrue(list(paths.backups.glob("opensat_pre_migration_v1_*.sqlite3")))
 
     def test_assessment_and_question_event_imports_are_idempotent(self) -> None:
         duplicate_assessment = self.service.record_assessment(
@@ -103,6 +120,12 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertTrue(first["created"])
         self.assertFalse(duplicate_event["created"])
         self.assertEqual(len(self.service.get_review_queue(self.learner_id)), 1)
+
+    def test_question_event_persists_bounded_apparent_difficulty(self) -> None:
+        event = self.make_event("appearance-001", apparent_difficulty="routine")
+        self.assertEqual(event["event"]["apparent_difficulty"], "routine")
+        with self.assertRaisesRegex(ValueError, "apparent_difficulty"):
+            self.make_event("appearance-bad", apparent_difficulty="deceptive")
 
     def test_learner_practice_preferences_are_merged_and_bounded(self) -> None:
         updated = self.service.update_learner_preferences(
@@ -325,7 +348,7 @@ class VerticalSliceTests(unittest.TestCase):
                 manifest=manifest,
             )
 
-    def test_visual_submission_v11_requires_a_stopped_monotonic_timer(self) -> None:
+    def test_visual_submission_v12_requires_timer_and_apparent_difficulty(self) -> None:
         session = self.service.build_daily_session(self.learner_id, session_mode="strategy_trial")
         manifest = {
             "manifest_id": "manifest-timer-fixture",
@@ -348,11 +371,12 @@ class VerticalSliceTests(unittest.TestCase):
         }
         answer = {
             "item_id": "item-timer", "selected_answer": "A", "confidence": 4,
+            "apparent_difficulty": "routine",
             "time_seconds": 18.25, "answer_changed": False, "almost_choice": None,
             "help_used": False, "timing_source": "visualize_monotonic_timer", "timer_state": "stopped",
         }
         payload = {
-            "schema_version": "1.1", "surface": "visualize", "manifest_id": manifest["manifest_id"],
+            "schema_version": "1.2", "surface": "visualize", "manifest_id": manifest["manifest_id"],
             "session_id": session["session_id"], "submission_id": f"{session['session_id']}:diagnostic_core",
             "section": "diagnostic_core", "answers": [answer], "actual_minutes": 1,
             "fatigue": None, "reflection": None,
@@ -369,6 +393,7 @@ class VerticalSliceTests(unittest.TestCase):
             {**answer, "timer_state": "running"},
             {**answer, "timing_source": "manual"},
             {**answer, "time_seconds": 0},
+            {**answer, "apparent_difficulty": "deceptive"},
         ):
             with self.assertRaises(ValueError):
                 validate_visual_submission(
@@ -391,6 +416,7 @@ class VerticalSliceTests(unittest.TestCase):
             if item["question_locator"] == "item-timer"
         )
         self.assertEqual(timer_event["time_source"], "visualize_monotonic_timer")
+        self.assertEqual(timer_event["apparent_difficulty"], "routine")
         self.assertEqual(timer_event["abstract_context"]["slow_threshold_seconds"], 45)
 
     def test_visual_submission_persists_each_section_once_and_keeps_strategy_inconclusive(self) -> None:

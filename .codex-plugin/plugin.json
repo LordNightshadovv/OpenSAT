@@ -1,6 +1,6 @@
 {
   "name": "opensat",
-  "version": "0.1.0+codex.20260831124455",
+  "version": "0.1.0+codex.20261025204610",
   "description": "OpenSAT: a local-first bilingual SAT Reading and Writing diagnosis and deliberate-practice plugin.",
   "author": {
     "name": "OpenSAT"

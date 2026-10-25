@@ -10,7 +10,7 @@ from pathlib import Path
 from ..privacy.paths import DataPaths, ensure_data_layout
 
 
-LATEST_SCHEMA_VERSION = 1
+LATEST_SCHEMA_VERSION = 2
 
 
 SCHEMA_SQL = """
@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS question_events (
     time_seconds REAL,
     time_source TEXT,
     confidence INTEGER,
+    apparent_difficulty TEXT,
     flagged INTEGER NOT NULL DEFAULT 0,
     answer_changed INTEGER NOT NULL DEFAULT 0,
     selected_answer TEXT,
@@ -189,6 +190,11 @@ CREATE TABLE IF NOT EXISTS practice_imports (
 """
 
 
+MIGRATION_2_SQL = """
+ALTER TABLE question_events ADD COLUMN apparent_difficulty TEXT;
+"""
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -210,7 +216,10 @@ def connect(data_dir: Path | None = None) -> tuple[sqlite3.Connection, DataPaths
     _backup_before_migration(paths, current_version)
     if current_version < 1:
         connection.executescript(SCHEMA_SQL)
-        connection.execute("PRAGMA user_version = 1")
+        connection.execute("PRAGMA user_version = 2")
+    elif current_version < 2:
+        connection.executescript(MIGRATION_2_SQL)
+        connection.execute("PRAGMA user_version = 2")
     connection.commit()
     try:
         paths.database.chmod(0o600)

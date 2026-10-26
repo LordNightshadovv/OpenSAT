@@ -1,6 +1,6 @@
 # Visual practice surface
 
-OpenSAT has no native practice GUI in this prototype. When the Visualize capability is available, `sat-daily-sprint` uses it as a temporary interaction surface for generated practice. The surface is not a second learner model and does not persist answers by itself.
+OpenSAT has no native practice GUI in this prototype. When the Visualize capability is available, `sat-daily-sprint` uses it as a temporary interaction surface for generated practice and, when supplied by the learner, a small number of reviewed local-source questions. The surface is not a second learner model and does not persist answers by itself.
 
 ## Surface selection
 
@@ -15,6 +15,7 @@ A future native OpenSAT interface replaces Visualize for the same sprint; the tw
 The Visualize surface should:
 
 - show the exact simulated-item label for every generated item;
+- show the verified provenance tier and source locator for every direct local-source item; a publisher reconstruction must never be labeled official;
 - collect answers, confidence, timing, apparent difficulty, answer changes, and near-miss signals without collecting credentials or page content;
 - keep one or two persistence sections, while allowing one to four labeled purpose groups inside them; purpose groups clarify why adjacent questions belong together and are not separate stop-and-restart activities;
 - place one to four questions in each purpose group and validate the complete grouping before rendering;
@@ -36,7 +37,7 @@ The assistant must not say that an answer was recorded merely because the button
 
 ## Submission payload
 
-The payload sent to Codex is intentionally content-free. The transient item manifest held by the assistant supplies the answer key, skill, and question type; the payload must not repeat question text or answer choices.
+The payload sent to Codex is intentionally content-free. The transient item manifest held by the assistant supplies the answer key, skill, question type, and provenance. Direct local-source items use `provenance_type`, `source_label`, and `source_locator` in that manifest. The payload must not repeat question text or answer choices.
 
 ```json
 {
@@ -74,7 +75,7 @@ New surfaces may continue using `diagnostic_core` and `strategy_and_reflection` 
 
 The receiving daily-sprint workflow calls the `record_visual_submission` MCP tool. Its service boundary uses `opensat.visualize.validate_visual_submission` to validate the untrusted payload against the learner-owned session and transient manifest, then atomically:
 
-1. records each generated item's simulated provenance;
+1. records generated items in the generated-item store, while preserving only the locator and provenance tier for direct local-source items;
 2. records each response with stable `<session_id>:<item_id>` event keys and no copied content;
 3. records strategy-trial observations where applicable;
 4. records the section's actual minutes, outcome, fatigue, and reflection through the session tools; and

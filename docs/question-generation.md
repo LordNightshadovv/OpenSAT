@@ -30,14 +30,21 @@ Run these as separate logical stages, even if one model executes them in the fir
 2. Solve independently without trusting the proposed key.
 3. Check that exactly one option is defensible.
 4. Inspect every distractor and its intended mechanism.
-5. Check for unintended shortcuts.
-6. Check wording and grammatical consistency.
-7. Check the target skill blueprint and public stem family against `reading-writing-item-style.md`.
-8. Check that the stated difficulty comes from the required reasoning rather than length, jargon, or obscurity alone.
-9. For Rhetorical Synthesis, check that the hypothetical-student notes scenario and writerly goal are present; reject detached `Goal:` worksheet framing.
-10. Check that the item is not a near-copy of stored or visible official or third-party material.
-11. Approve, revise, or reject.
-12. Label clearly as simulated.
+5. For a hard item, identify one dominant near-neighbor distractor. Confirm that it remains plausible after a gist-level reading, preserves most relevant facts, and fails exactly one decisive constraint. Match it to the correct answer in grammar, length, specificity, and polish.
+6. Reject obvious-opposite or unrelated filler choices. The other two distractors must be locally plausible even if they are easier to eliminate than the dominant distractor.
+7. Check for unintended shortcuts, including a correct option that is uniquely cautious, detailed, qualified, comprehensive, or syntactically different.
+8. Check wording and grammatical consistency.
+9. Check the target skill blueprint and public stem family against `reading-writing-item-style.md`.
+10. Check that the stated difficulty comes from the required reasoning rather than length, jargon, or obscurity alone.
+11. For Rhetorical Synthesis, check that the hypothetical-student notes scenario and writerly goal are present; reject detached `Goal:` worksheet framing.
+12. Check that the item is not a near-copy of stored or visible official or third-party material.
+13. Require an independent solver to name both the key and the smallest fact that defeats the dominant distractor. If two choices remain defensible under the exact task, revise or reject; ambiguity is not desirable difficulty.
+14. Approve, revise, or reject.
+15. Label clearly as simulated.
+
+## Direct local-source exception
+
+The generation pipeline remains originality-only. A Daily Sprint may separately display one or two direct questions from a learner-supplied local archive when the daily-sprint workflow has visually checked the question and publisher key, checked prior exposure, and labeled provenance precisely. That content is transient source material, not a generated item: do not store it in this repository, the learner model, exports, or response payloads.
 
 The local `generation.pipeline` enforces the presence of these validation stages and returns `needs_revision` until all boolean checks pass. It also validates purpose-group layouts so a presentation group cannot silently grow past four questions. The first-phase tests use wholly synthetic placeholders.
 

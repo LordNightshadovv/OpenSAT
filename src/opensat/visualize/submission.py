@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..privacy.redaction import ensure_safe_metadata
-from ..domain.constants import APPARENT_DIFFICULTY_TAGS
+from ..domain.constants import APPARENT_DIFFICULTY_TAGS, PROVENANCE_TYPES
 
 
 SUPPORTED_SCHEMA_VERSIONS = ("1.0", "1.1", "1.2")
@@ -44,6 +44,11 @@ MANIFEST_ITEM_REQUIRED_KEYS = {
     "intended_difficulty",
     "validation_status",
     "item_version",
+}
+DIRECT_SOURCE_LABELS = {
+    "official": "Official College Board question",
+    "licensed": "Licensed source question",
+    "publisher_reconstruction": "Publisher-reconstructed past-paper question",
 }
 
 
@@ -158,8 +163,20 @@ def validate_visual_submission(
         for key in ("provider", "target_skill", "intended_difficulty", "item_version"):
             if not isinstance(metadata[key], str) or not metadata[key].strip():
                 raise ValueError(f"manifest item {key} must be a non-empty string")
-        if metadata["validation_status"] != "approved":
-            raise ValueError("only approved simulated items may be persisted")
+        provenance_type = metadata.get("provenance_type", "simulated")
+        if provenance_type not in PROVENANCE_TYPES:
+            raise ValueError(f"manifest item provenance_type must be one of {PROVENANCE_TYPES}")
+        if provenance_type == "simulated":
+            if metadata["validation_status"] != "approved":
+                raise ValueError("only approved simulated items may be persisted")
+        else:
+            if metadata["validation_status"] != "reviewed":
+                raise ValueError("direct source items must be visually reviewed")
+            source_locator = metadata.get("source_locator")
+            if not isinstance(source_locator, str) or not source_locator.strip():
+                raise ValueError("direct source items require a non-empty source_locator")
+            if metadata.get("source_label") != DIRECT_SOURCE_LABELS[provenance_type]:
+                raise ValueError("direct source label must match provenance_type")
         if metadata.get("strategy_condition") not in {None, "A", "B"}:
             raise ValueError("strategy_condition must be A, B, or null")
         slow_threshold = metadata.get("slow_threshold_seconds")

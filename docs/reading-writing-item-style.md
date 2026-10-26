@@ -56,6 +56,19 @@ A hard item must name at least one real difficulty mechanism in its specificatio
 
 Passage length, jargon, and rare vocabulary do not count as difficulty mechanisms by themselves.
 
+### Answer-choice differentiation
+
+A hard item is not hard merely because the stimulus is dense. It must create a precise final comparison without becoming ambiguous:
+
+- Include one dominant near-neighbor distractor that is compatible with the topic and most of the stimulus but fails exactly one required relationship.
+- Make the correct answer and dominant distractor parallel in syntax, length, specificity, qualification, and rhetorical polish.
+- Do not make the correct answer the only cautious, comprehensive, or detailed choice.
+- Make the remaining distractors locally plausible; obvious contradictions and unrelated filler cannot carry the item.
+- State the mutation for every wrong choice and the smallest textual or structural fact that defeats the dominant distractor.
+- Independently solve the item without trusting the proposed key. If two options remain defensible after applying the exact stem operation, revise or reject it.
+
+For a fluent 750–800 learner, prefer a routine-looking passage with a concealed scope, warrant, comparison, function, goal, or controller distinction over an intimidating passage with three easy eliminations.
+
 ## Originality and quality gates
 
 Before approval, independently solve the item, verify exactly one defensible answer, inspect each distractor's mechanism, and run the existing shortcut, wording, difficulty, and originality checks. Also require:

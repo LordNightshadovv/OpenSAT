@@ -419,6 +419,85 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertEqual(timer_event["apparent_difficulty"], "routine")
         self.assertEqual(timer_event["abstract_context"]["slow_threshold_seconds"], 45)
 
+    def test_visual_submission_preserves_direct_archive_provenance_without_generated_item(self) -> None:
+        session = self.service.build_daily_session(self.learner_id, session_mode="strategy_trial")
+        locator = "local-archive:2026-09-apac:m2:q11"
+        direct_item = {
+            "correct_answer": "B",
+            "provider": "local-past-paper-archive",
+            "target_skill": "quantitative_evidence",
+            "target_error_signature": "task_goal_drift",
+            "intended_difficulty": "hard",
+            "validation_status": "reviewed",
+            "item_version": "PA-F3-02",
+            "provenance_type": "publisher_reconstruction",
+            "source_label": "Publisher-reconstructed past-paper question",
+            "source_locator": locator,
+        }
+        manifest = {
+            "manifest_id": "manifest-direct-archive",
+            "session_id": session["session_id"],
+            "learner_id": self.learner_id,
+            "sections": {"diagnostic_core": ["direct-01"], "strategy_and_reflection": ["simulated-final"]},
+            "items": {
+                "direct-01": direct_item,
+                "simulated-final": {
+                    "correct_answer": "A", "provider": "local-synthetic-fixture",
+                    "target_skill": "transitions", "target_error_signature": "task_goal_drift",
+                    "intended_difficulty": "hard", "validation_status": "approved",
+                    "item_version": "direct-fixture-final",
+                },
+            },
+        }
+        answer = {
+            "item_id": "direct-01", "selected_answer": "B", "confidence": 5,
+            "apparent_difficulty": "routine", "time_seconds": 31,
+            "answer_changed": False, "almost_choice": "C", "help_used": False,
+            "timing_source": "visualize_monotonic_timer", "timer_state": "stopped",
+        }
+        payload = {
+            "schema_version": "1.2", "surface": "visualize", "manifest_id": manifest["manifest_id"],
+            "session_id": session["session_id"], "submission_id": f"{session['session_id']}:diagnostic_core",
+            "section": "diagnostic_core", "answers": [answer], "actual_minutes": 1,
+            "fatigue": None, "reflection": None,
+        }
+
+        with self.assertRaises(ValueError):
+            validate_visual_submission(
+                payload,
+                learner_id=self.learner_id,
+                session_state=self.service.get_session_state(self.learner_id, session_id=session["session_id"]),
+                manifest={
+                    **manifest,
+                    "items": {
+                        **manifest["items"],
+                        "direct-01": {**direct_item, "source_label": "Official College Board question"},
+                    },
+                },
+            )
+
+        persisted = self.service.record_visual_submission(
+            learner_id=self.learner_id,
+            payload=payload,
+            manifest=manifest,
+        )
+        self.assertTrue(persisted["persisted"])
+        exported = self.service.export_learner_model(self.learner_id)
+        export_payload = json.loads(Path(exported["path"]).read_text())
+        event = next(
+            item for item in export_payload["records"]["question_events"]
+            if item["question_locator"] == locator
+        )
+        self.assertEqual(event["provenance_type"], "publisher_reconstruction")
+        self.assertEqual(
+            event["abstract_context"]["source_label"],
+            "Publisher-reconstructed past-paper question",
+        )
+        self.assertFalse(any(
+            item["item_version"] == "PA-F3-02"
+            for item in export_payload["records"].get("generated_items", [])
+        ))
+
     def test_visual_submission_persists_each_section_once_and_keeps_strategy_inconclusive(self) -> None:
         session = self.service.build_daily_session(self.learner_id, session_mode="strategy_trial")
         manifest = {

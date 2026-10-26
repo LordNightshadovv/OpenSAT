@@ -4,6 +4,8 @@ Updated 2026-09-28. This is a **mechanism index**, not a question bank or a reco
 
 The referenced discussion focused on a learner with two reported R&W 760 scores and strong academic reading. That history makes these mechanisms worth **checking**, not diagnosing. No source below supplies native-speaker error rates or this learner's item-level responses. “A fluent reader might choose this” is an analyst's hypothesis, not an observed population result.
 
+Treat any resulting focus taxonomy and its reference questions as a **candidate watchlist**, not a universal curriculum. They are useful things to look out for and can seed a mixed calibration sample, but they become a learner's recurring focus only when that learner's own misses, uncertain or slow correct answers, answer changes, or delayed-transfer results support the choice. Another learner may need a different focus order or none of these mechanisms as a primary target.
+
 ## How to read an item
 
 For each question, identify the assessed operation before considering subject matter. Ask what an appealing wrong option **adds, drops, reverses, or fails to do**. A correct-looking fact can fail because it does not answer the task. Use a checkpoint only when its trigger appears, keeping ordinary decisions fast.
@@ -64,3 +66,5 @@ Public post-exam reports are incomplete and drawn from different adaptive forms.
 2. Build wholly original contrastive items with one controlled difference: claim strength, comparison group, sentence relation, modifier referent, contextual sense, or rhetorical goal. Validate one defensible answer and independently inspect every distractor. Never lightly paraphrase the linked items.
 3. Mix a small reliability probe with genuinely hard transfer when the learner's evidence calls for it. The purpose is to test attention and rule execution, not to fill a quota or abandon the existing adaptive difficulty recommendation.
 4. Compare immediate correctness with delayed/varied transfer and calibration. Treat a one-item success as provisional; promote a recurring error signature only under the existing learner-model evidence rules. Keep the planned Daily Sprint at 20 minutes.
+
+When a learner supplies a local past-paper archive, a Daily Sprint may display one or two visually reviewed questions directly from that archive. This is a delivery exception, not permission to incorporate the wording into OpenSAT: label publisher reconstructions as reconstructions, check the accompanying key and prior exposure, and keep all source text out of the repository, learner model, exports, and submission payloads. Use the full reviewed focus bundle—not only the day's direct examples—to calibrate original distractors. Reference questions illustrate possible traps; they do not establish that the associated focus is optimal for every learner.

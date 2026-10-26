@@ -1287,6 +1287,10 @@ class LabService:
                 )
 
             assessment_external_id = f"visualize:{session['session_id']}"
+            resolved_provenance = sorted({
+                metadata.get("provenance_type", "simulated")
+                for metadata in validated["resolved_items"]
+            })
             assessment = connection.execute(
                 "SELECT * FROM assessments WHERE learner_id = ? AND source = 'other' AND external_id = ?",
                 (learner_id, assessment_external_id),
@@ -1298,7 +1302,7 @@ class LabService:
                     (assessment_id, learner_id, source, assessment_type, external_id, taken_at,
                      is_official, total_score, reading_writing_score, math_score,
                      domain_evidence_json, import_provenance_json, created_at)
-                    VALUES (?, ?, 'other', 'visualize_synthetic_diagnostic', ?, ?, 0,
+                    VALUES (?, ?, 'other', 'visualize_practice', ?, ?, 0,
                             NULL, NULL, NULL, ?, ?, ?)""",
                     (
                         assessment_id,
@@ -1306,7 +1310,11 @@ class LabService:
                         assessment_external_id,
                         self._clock_snapshot()["local_date"],
                         _json({"surface": "visualize", "manifest_id": submission["manifest_id"]}),
-                        _json({"mode": "structured_follow_up", "content_stored": False, "simulated": True}),
+                        _json({
+                            "mode": "structured_follow_up",
+                            "content_stored": False,
+                            "provenance_types": resolved_provenance,
+                        }),
                         utc_now(),
                     ),
                 )
@@ -1322,35 +1330,37 @@ class LabService:
                 answer = answer_by_id[item_id]
                 provider = metadata["provider"]
                 item_version = metadata["item_version"]
-                generated = connection.execute(
-                    "SELECT item_id FROM generated_items WHERE learner_id = ? AND provider = ? AND item_version = ? ORDER BY created_at LIMIT 1",
-                    (learner_id, provider, item_version),
-                ).fetchone()
-                if generated is None:
-                    connection.execute(
-                        """INSERT INTO generated_items
-                        (item_id, learner_id, provider, target_skill, target_error_signature,
-                         intended_difficulty, validation_status, item_version, simulated_label,
-                         specification_json, exposure_history_json, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?)""",
-                        (
-                            _id("item"),
-                            learner_id,
-                            provider,
-                            metadata["target_skill"],
-                            metadata.get("target_error_signature"),
-                            metadata["intended_difficulty"],
-                            metadata["validation_status"],
-                            item_version,
-                            SIMULATED_LABEL,
-                            _json({
-                                "manifest_id": submission["manifest_id"],
-                                "question_type": metadata.get("question_type"),
-                                "strategy_condition": metadata.get("strategy_condition"),
-                            }),
-                            utc_now(),
-                        ),
-                    )
+                provenance_type = metadata.get("provenance_type", "simulated")
+                if provenance_type == "simulated":
+                    generated = connection.execute(
+                        "SELECT item_id FROM generated_items WHERE learner_id = ? AND provider = ? AND item_version = ? ORDER BY created_at LIMIT 1",
+                        (learner_id, provider, item_version),
+                    ).fetchone()
+                    if generated is None:
+                        connection.execute(
+                            """INSERT INTO generated_items
+                            (item_id, learner_id, provider, target_skill, target_error_signature,
+                             intended_difficulty, validation_status, item_version, simulated_label,
+                             specification_json, exposure_history_json, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?)""",
+                            (
+                                _id("item"),
+                                learner_id,
+                                provider,
+                                metadata["target_skill"],
+                                metadata.get("target_error_signature"),
+                                metadata["intended_difficulty"],
+                                metadata["validation_status"],
+                                item_version,
+                                SIMULATED_LABEL,
+                                _json({
+                                    "manifest_id": submission["manifest_id"],
+                                    "question_type": metadata.get("question_type"),
+                                    "strategy_condition": metadata.get("strategy_condition"),
+                                }),
+                                utc_now(),
+                            ),
+                        )
 
                 selected = answer["selected_answer"]
                 correct = selected == metadata["correct_answer"]
@@ -1376,6 +1386,8 @@ class LabService:
                     event_id = _id("event")
                     abstract_context = {
                         "manifest_id": submission["manifest_id"],
+                        "provenance_type": provenance_type,
+                        "source_label": metadata.get("source_label"),
                         "target_error_signature": metadata.get("target_error_signature"),
                         "intended_difficulty": metadata["intended_difficulty"],
                         "slow_threshold_seconds": metadata.get("slow_threshold_seconds"),
@@ -1392,14 +1404,14 @@ class LabService:
                          apparent_difficulty, answer_changed, selected_answer, correct_answer, provisional_skill,
                          provenance_type, content_fingerprint, abstract_context_json, created_at)
                         VALUES (?, ?, ?, ?, 'reading-writing', ?, ?, ?, ?, ?, ?, 0,
-                                ?, ?, ?, ?, ?, 'simulated', NULL, ?, ?)""",
+                                ?, ?, ?, ?, ?, ?, NULL, ?, ?)""",
                         (
                             event_id,
                             learner_id,
                             assessment_id,
                             event_key,
                             section,
-                            item_id,
+                            metadata.get("source_locator", item_id),
                             result,
                             answer["time_seconds"],
                             "visualize_monotonic_timer" if submission["schema_version"] in {"1.1", "1.2"} else "learner_reported",
@@ -1409,6 +1421,7 @@ class LabService:
                             selected,
                             metadata["correct_answer"],
                             metadata["target_skill"],
+                            provenance_type,
                             _json(abstract_context),
                             utc_now(),
                         ),
@@ -1431,7 +1444,7 @@ class LabService:
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)""",
                             (
                                 _id("review"), learner_id, event_id, metadata["target_skill"],
-                                f"Review {result} simulated response", due.isoformat(),
+                                f"Review {result} {provenance_type} response", due.isoformat(),
                                 0.7 if result in {"incorrect", "omitted"} else 0.45,
                                 0.35, "near", utc_now(),
                             ),

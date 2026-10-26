@@ -17,7 +17,7 @@ USER_BAND_LABELS = {
 LANGUAGES = ("english", "chinese", "bilingual")
 EXPLANATION_MODES = ("english", "chinese", "bilingual")
 ASSESSMENT_SOURCES = ("manual", "bluebook", "college-board", "gemini-module", "other")
-PROVENANCE_TYPES = ("official", "simulated", "licensed")
+PROVENANCE_TYPES = ("official", "simulated", "licensed", "publisher_reconstruction")
 QUESTION_RESULTS = (
     "incorrect",
     "omitted",

@@ -17,7 +17,7 @@ Recheck these public sources when the specification changes. Record only referen
 ## Global form
 
 - Use one short stimulus or a related pair followed by one four-option multiple-choice question.
-- Keep prose within the digital SAT's public 25–150-word passage range unless the item type is a notes set or an informational graphic.
+- Keep prose within the digital SAT's public 25–150-word passage range unless the item type is a notes set or an informational graphic. This is a permissible range, not an instruction to default to its shortest end; match a reviewed same-family cohort's reading-to-answer load.
 - Draw contexts from literature, history and social studies, the humanities, and science. The context should be self-contained and should not reward outside knowledge.
 - Use the public College Board stem family for the target skill. Do not invent a casual worksheet instruction when the assessment uses a stable testing convention.
 - Make all four options grammatically compatible with the stem and locally plausible. Exactly one option must perform the requested operation.
@@ -28,7 +28,7 @@ Recheck these public sources when the specification changes. Record only referen
 | --- | --- | --- |
 | Information and Ideas — Central Ideas and Details | A short literary or informational text; ask for the main idea or a supported detail. | Include several accurate local details, but only one option captures the text's governing relationship without adding scope or causality. |
 | Information and Ideas — Command of Evidence, textual | State or imply a claim and ask which finding, quotation, or detail would most directly support or weaken it. | Make distractors relevant to the topic but insufficient for the exact claim, direction, comparison group, or boundary. |
-| Information and Ideas — Command of Evidence, quantitative | Pair a text with a small table, bar graph, or line graph and ask which choice uses the data to complete or support the claim. | Require the decisive comparison or endpoint; avoid arithmetic for its own sake. Distractors should cite real values but perform the wrong comparison. |
+| Information and Ideas — Command of Evidence, quantitative | Pair a text with a table, bar graph, or line graph whose dimensions match the reviewed family. | Require the decisive comparison or endpoint; preserve task-relevant fields and contextual fields needed to make the display realistically searchable. Distractors should cite real values but perform the wrong comparison. Do not remove rows, columns, units, labels, or notes merely to shorten the item. |
 | Information and Ideas — Inferences | Present enough facts for one warranted extension and ask which choice most logically completes the text. | Require a non-obvious but necessary inferential bridge. Reject choices that add a motive, mechanism, certainty, or population not licensed by the stimulus. |
 | Craft and Structure — Words in Context | Use a blank or ask for the contextual meaning of a word. | Use high-utility academic near-neighbors that fit the syntax; only one must fit the precise logical relationship and connotation. Obscurity alone is not difficulty. |
 | Craft and Structure — Text Structure and Purpose | Mark a portion or ask about the text's overall purpose. | Test the portion's functional contribution to the whole, not mere topic recognition. Distractors may describe nearby details but must misstate the rhetorical role. |
@@ -68,6 +68,12 @@ A hard item is not hard merely because the stimulus is dense. It must create a p
 - Independently solve the item without trusting the proposed key. If two options remain defensible after applying the exact stem operation, revise or reject it.
 
 For a fluent 750–800 learner, prefer a routine-looking passage with a concealed scope, warrant, comparison, function, goal, or controller distinction over an intimidating passage with three easy eliminations.
+
+### Surface-load fidelity
+
+For a hard simulation calibrated from references, follow [`item-fidelity.md`](item-fidelity.md). Match a cohort across body structure, display dimensions, reasoning operations, option competition, and expected total response time. Word count alone is insufficient, and irrelevant padding does not count. The computed metrics are surface-load proxies, not comprehension difficulty or psychometric equivalence.
+
+A learner-supplied seven-type taxonomy and its past-paper/hard-set anchors is a candidate watchlist: it can guide archive review and mixed calibration, but it is not a universal focus plan. Recurring focus requires that learner's own item-level and transfer evidence.
 
 ## Originality and quality gates
 

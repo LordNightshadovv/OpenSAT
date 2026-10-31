@@ -15,7 +15,12 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from opensat import LabService
 from opensat.domain.constants import PILOT_BANDS
-from opensat.generation.pipeline import ItemSpecification, validate_candidate, validate_purpose_groups
+from opensat.generation.pipeline import (
+    ItemSpecification,
+    profile_surface_load,
+    validate_candidate,
+    validate_purpose_groups,
+)
 from opensat.privacy.paths import ensure_data_layout
 from opensat.scheduling.engine import build_daily_plan, next_review_date
 from opensat.storage.database import connect
@@ -662,6 +667,135 @@ class VerticalSliceTests(unittest.TestCase):
             {**candidate, "rhetorical_synthesis_scenario_check": True}, synthesis
         )
         self.assertEqual(synthesis_approved["status"], "approved")
+
+    def test_hard_item_fidelity_profile_rejects_underloaded_surface_and_reasoning(self) -> None:
+        specification = ItemSpecification(
+            domain="reading-writing",
+            skill="quantitative_evidence",
+            question_type="table_evidence",
+            stem_family="uses_data_to_complete_assertion",
+            score_band="750-800",
+            difficulty="hard",
+            cognitive_operation="link two variables across conditions",
+            target_error_signature="wrong_comparison_direction",
+            stimulus_constraints={"synthetic": True, "informational_graphic": "table"},
+            correct_answer_rationale="The answer links the cooler condition to the lower outcome.",
+            distractor_mechanisms=["one-variable comparison", "wrong direction", "true but task-wrong"],
+            difficulty_mechanisms=["multi_group_or_endpoint_comparison"],
+            style_reference_ids=["college-board-public-question-stems"],
+            timing_expectation_seconds=90,
+            transfer_distance="far",
+            fidelity_targets={
+                "calibration_id": "reviewed-hard-table-cohort-v1",
+                "reviewed_source_count": 4,
+                "metrics": {
+                    "body.content_tokens": {"min": 45},
+                    "body.sentences": {"min": 4},
+                    "body.finite_clauses": {"min": 4},
+                    "body.subordinate_clauses": {"min": 1},
+                    "body.propositions": {"min": 6},
+                    "body.relations": {"min": 3},
+                    "table.columns": {"min": 5},
+                    "table.data_rows": {"min": 4},
+                    "table.nonempty_cells": {"min": 25},
+                    "table.numeric_cells": {"min": 16},
+                    "table.unit_label_cells": {"min": 3},
+                    "reasoning.required_comparisons": {"min": 2},
+                    "reasoning.variables_to_link": {"min": 2},
+                    "reasoning.direction_checks": {"min": 1},
+                    "timing.expected_total_seconds": {"min": 70, "max": 110},
+                    "options.locally_plausible_distractors": {"min": 3},
+                    "options.dominant_failed_constraints": {"exact": 1},
+                    "options.dominant_to_key_content_ratio": {"min": 0.75, "max": 1.33},
+                },
+            },
+        )
+        base_candidate = {
+            "options": ["A", "B", "C", "D"],
+            "proposed_key": "B",
+            "independent_solution": "B",
+            "option_defensibility": {"A": False, "B": True, "C": False, "D": False},
+            "shortcut_check": True,
+            "wording_check": True,
+            "difficulty_check": True,
+            "college_board_style_check": True,
+            "difficulty_mechanism_check": True,
+            "originality_check": True,
+        }
+        shortened_surface = profile_surface_load(
+            "Researchers compared wing size in two months. The table shows the results.",
+            [
+                ["Month", "Low (F)", "Male size (mm)", "Female size (mm)"],
+                ["May", "50", "1.98", "2.27"],
+                ["June", "56", "2.01", "2.31"],
+            ],
+            ["One value changed.", "Two linked values changed.", "The sexes differed.", "One month was cooler."],
+        )
+        shortened_surface["body"].update({
+            "finite_clauses": 2, "subordinate_clauses": 0, "propositions": 2, "relations": 1,
+        })
+        shortened_surface["reasoning"] = {
+            "required_comparisons": 1, "variables_to_link": 1, "direction_checks": 0,
+        }
+        shortened_surface["timing"] = {"expected_total_seconds": 45}
+        shortened_surface["options"].update({
+            "locally_plausible_distractors": 2,
+            "dominant_failed_constraints": 1,
+            "dominant_to_key_content_ratio": 0.7,
+        })
+        rejected = validate_candidate(
+            {**base_candidate, "fidelity_profile": shortened_surface},
+            specification,
+        )
+        self.assertEqual(rejected["status"], "needs_revision")
+        self.assertIn("body.content_tokens", rejected["fidelity_failures"])
+        self.assertIn("table.columns", rejected["fidelity_failures"])
+        self.assertIn("reasoning.required_comparisons", rejected["fidelity_failures"])
+
+        calibrated_surface = profile_surface_load(
+            "Researchers tracked a synthetic insect population across four distinct seasons. "
+            "Earlier work linked two body measurements to reproductive success. "
+            "The team compared monthly high and low temperatures with male and female measurements. "
+            "Researchers also recorded rainfall, food availability, generation length, and collection dates. "
+            "Their hypothesis predicts that cooler conditions should coincide with lower values in both measurements.",
+            [
+                ["Season", "High (F)", "Low (F)", "Male measure (mm)", "Female measure (mm)"],
+                ["Spring 1", "70", "48", "1.91", "2.20"],
+                ["Spring 2", "75", "52", "1.95", "2.24"],
+                ["Summer", "84", "61", "2.02", "2.31"],
+                ["Autumn", "66", "43", "1.89", "2.18"],
+            ],
+            [
+                "The cooler season had one lower measure.",
+                "The cooler season had lower male and female measures than the warmer season.",
+                "Female measures exceeded male measures in every season.",
+                "One season had a lower nighttime temperature than another.",
+            ],
+        )
+        calibrated_surface["body"].update({
+            "finite_clauses": 6, "subordinate_clauses": 2, "propositions": 7, "relations": 4,
+        })
+        calibrated_surface["reasoning"] = {
+            "required_comparisons": 2, "variables_to_link": 2, "direction_checks": 1,
+        }
+        calibrated_surface["timing"] = {"expected_total_seconds": 85}
+        calibrated_surface["options"].update({
+            "locally_plausible_distractors": 3,
+            "dominant_failed_constraints": 1,
+            "dominant_to_key_content_ratio": 0.92,
+        })
+        approved = validate_candidate(
+            {**base_candidate, "fidelity_profile": calibrated_surface},
+            specification,
+        )
+        self.assertEqual(approved["status"], "approved")
+        self.assertEqual(calibrated_surface["table"]["cells"], 25)
+        self.assertEqual(calibrated_surface["table"]["numeric_cells"], 16)
+        self.assertEqual(calibrated_surface["body"]["sentences"], 5)
+        self.assertEqual(
+            calibrated_surface["proxy_notice"],
+            "surface-load proxies; not comprehension difficulty",
+        )
 
     def test_purpose_groups_are_presentation_only_and_max_four_questions(self) -> None:
         validated = validate_purpose_groups(

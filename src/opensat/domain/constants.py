@@ -88,25 +88,25 @@ BAND_DEFAULTS = {
     "600-640": BandDefault(
         "600-640",
         "guided_foundation",
-        (("guided_practice_block", 18), ("review_reflection", 2)),
+        (("guided_practice_block", 18), ("near_transfer_check", 2)),
         "Explicit teaching, bilingual clarification, worked examples, and slower fading of support.",
     ),
     "650-690": BandDefault(
         "650-690",
         "reliability_procedure",
-        (("targeted_practice_block", 18), ("review_reflection", 2)),
+        (("targeted_practice_block", 18), ("near_transfer_check", 2)),
         "Question-type recognition, rule retrieval, distractor analysis, and guided-to-independent practice.",
     ),
     "700-740": BandDefault(
         "700-740",
         "transfer_discrimination",
-        (("interleaved_transfer_block", 18), ("review_reflection", 2)),
+        (("interleaved_transfer_block", 18), ("near_transfer_check", 2)),
         "Transfer, difficult distractor distinctions, efficiency, and interleaving.",
     ),
     "750-800": BandDefault(
         "750-800",
         "precision_variance_reduction",
-        (("timed_precision_block", 17), ("review_reflection", 3)),
+        (("timed_precision_block", 17), ("near_transfer_check", 3)),
         "Near-misses, timing, confidence calibration, rare traps, fatigue, and score-floor stability.",
     ),
 }

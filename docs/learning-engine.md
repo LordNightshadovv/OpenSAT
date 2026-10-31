@@ -53,12 +53,12 @@ The band-adaptive default is always exactly 20 planned minutes in one or two coh
 
 | Band | Default mix |
 | --- | --- |
-| 600–640 | 18 guided practice, 2 review/reflection |
-| 650–690 | 18 targeted practice, 2 review/reflection |
-| 700–740 | 18 interleaved transfer, 2 review/reflection |
-| 750–800 | 17 timed precision, 3 review/reflection |
+| 600–640 | 18 guided practice, 2 transfer check |
+| 650–690 | 18 targeted practice, 2 transfer check |
+| 700–740 | 18 interleaved transfer, 2 transfer check |
+| 750–800 | 17 timed precision, 3 near-transfer check |
 
-A Strategy Lab replaces the default with 14 minutes of focused diagnostic work and 6 minutes of strategy comparison plus reflection. It remains two persistence activities and stays inconclusive until both conditions have enough observations.
+A Strategy Lab replaces the default with 14 minutes of focused diagnostic work and 6 minutes of strategy comparison plus a brief transfer check. It remains two persistence activities and stays inconclusive until both conditions have enough observations. Reflections and comments are optional; a learner may post comments in ordinary chat after the session.
 
 Optional extended sessions must be opt-in and must not make the daily plan secretly depend on extra hours.
 

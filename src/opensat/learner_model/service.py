@@ -1276,9 +1276,13 @@ class LabService:
 
             # Legacy incomplete sessions can be safely consolidated from the
             # earlier five-fragment plan before they receive any result.
-            planned_types = {item.get("activity_type") for item in session.get("activities", [])}
-            surface_types = {"focused_diagnostic_block", "strategy_reflection_block"}
-            if not prior_results and planned_types != surface_types:
+            planned_types = frozenset(item.get("activity_type") for item in session.get("activities", []))
+            surface_types = frozenset({"focused_diagnostic_block", "strategy_reflection_block"})
+            default_types = frozenset(
+                item["activity_type"]
+                for item in build_daily_plan(session["band"]).as_dict()["activities"]
+            )
+            if not prior_results and planned_types not in (surface_types, default_types):
                 plan = build_daily_plan(session["band"], session_mode="strategy_trial")
                 session["activities"] = plan.as_dict()["activities"]
                 connection.execute(
@@ -1515,7 +1519,14 @@ class LabService:
                     (_json(trial_results), len(trial_results), _json(strategy_conclusion), utc_now(), trial_id),
                 )
 
-            activity_type = "focused_diagnostic_block" if section == "diagnostic_core" else "strategy_reflection_block"
+            activity_index = 0 if section == "diagnostic_core" else 1
+            activities = session.get("activities", [])
+            fallback_type = "focused_diagnostic_block" if section == "diagnostic_core" else "strategy_reflection_block"
+            activity_type = (
+                activities[activity_index].get("activity_type", fallback_type)
+                if len(activities) > activity_index
+                else fallback_type
+            )
             result_entry = {
                 "activity_type": activity_type,
                 "submission_id": submission_id,

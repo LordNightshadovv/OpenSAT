@@ -200,9 +200,9 @@ def validate_visual_submission(
     if section == "diagnostic_core":
         if reflection is not None:
             raise ValueError("diagnostic_core reflection must be null")
-    else:
+    elif reflection is not None:
         if not isinstance(reflection, dict):
-            raise ValueError("final reflection is required")
+            raise ValueError("reflection must be an object or null")
         _exact_keys(reflection, REFLECTION_KEYS, "reflection")
         payload["reflection"] = {
             key: _bounded_text(reflection[key], f"reflection.{key}")

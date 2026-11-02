@@ -74,10 +74,9 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' '{"js
 
 ## Install locally in Codex
 
-The current personal marketplace points `opensat@personal` at `/Users/vold/plugins/opensat`, which resolves to this source repository. After editing and validating the source, use the plugin-creator cachebuster helper and reinstall:
+The current personal marketplace points `opensat@personal` at `/Users/vold/plugins/opensat`, which resolves to this source repository. After editing and validating the source, increment the version in `.codex-plugin/plugin.json` to refresh the local cache, then reinstall:
 
 ```bash
-python3 /Users/vold/.codex/skills/.system/plugin-creator/scripts/update_plugin_cachebuster.py /Users/vold/plugins/opensat
 codex plugin add opensat@personal
 ```
 

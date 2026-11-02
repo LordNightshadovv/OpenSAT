@@ -56,7 +56,9 @@ The band-adaptive default is always exactly 20 planned minutes in one or two coh
 | 600–640 | 18 guided practice, 2 transfer check |
 | 650–690 | 18 targeted practice, 2 transfer check |
 | 700–740 | 18 interleaved transfer, 2 transfer check |
-| 750–800 | 17 timed precision, 3 near-transfer check |
+| 750–800 | 14 timed precision (six main questions), 6 adaptive transfer (normally three questions) |
+
+For ordinary 750–800 Reading and Writing, the six main questions normally split three focus and three mixed. Choose three transfer questions after the main responses are recorded, prioritizing errors and then fragile correct answers. If the main block is clean, raise the challenge and change the text, context, or display substantially. Use two transfer questions only when longer stimuli make three impractical within 20 minutes. The transfer block is part of the sprint, not an optional extension.
 
 A Strategy Lab replaces the default with 14 minutes of focused diagnostic work and 6 minutes of strategy comparison plus a brief transfer check. It remains two persistence activities and stays inconclusive until both conditions have enough observations. Reflections and comments are optional; a learner may post comments in ordinary chat after the session.
 

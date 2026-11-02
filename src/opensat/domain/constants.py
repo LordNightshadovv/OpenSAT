@@ -106,7 +106,7 @@ BAND_DEFAULTS = {
     "750-800": BandDefault(
         "750-800",
         "precision_variance_reduction",
-        (("timed_precision_block", 17), ("near_transfer_check", 3)),
+        (("timed_precision_block", 14), ("near_transfer_check", 6)),
         "Near-misses, timing, confidence calibration, rare traps, fatigue, and score-floor stability.",
     ),
 }

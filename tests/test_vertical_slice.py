@@ -238,6 +238,8 @@ class VerticalSliceTests(unittest.TestCase):
             self.assertEqual(plan.planned_minutes, 20)
             self.assertEqual(sum(item.minutes for item in plan.activities), 20)
             self.assertLessEqual(len(plan.activities), 2)
+        high_band = build_daily_plan("750-800")
+        self.assertEqual([(item.activity_type, item.minutes) for item in high_band.activities], [("timed_precision_block", 14), ("near_transfer_check", 6)])
         self.assertEqual(self.service.get_learner_profile(self.learner_id)["score_band_prior"], "650-690")
         session = self.service.build_daily_session(self.learner_id)
         first = self.service.record_activity_result(
@@ -267,7 +269,7 @@ class VerticalSliceTests(unittest.TestCase):
         final = self.service.record_activity_result(
             learner_id=self.learner_id,
             session_id=session["session_id"],
-            activity_type="review_reflection",
+            activity_type="near_transfer_check",
             outcome="completed",
             actual_minutes=2,
             fatigue="low",

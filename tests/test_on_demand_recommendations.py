@@ -289,14 +289,14 @@ class OnDemandRecommendationTests(unittest.TestCase):
                 session_id=session["session_id"],
                 activity_type="timed_precision_block",
                 outcome="completed",
-                actual_minutes=17,
+                actual_minutes=14,
             )
             completed = service.record_activity_result(
                 learner_id=learner_id,
                 session_id=session["session_id"],
-                activity_type="review_reflection",
+                activity_type="near_transfer_check",
                 outcome="completed",
-                actual_minutes=3,
+                actual_minutes=6,
                 completed=True,
             )
             self.assertIsNotNone(completed["on_demand_recommendations"])

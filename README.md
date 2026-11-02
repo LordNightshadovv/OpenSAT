@@ -68,6 +68,8 @@ python3 ./scripts/mcp_server.py
 
 The server speaks JSON-RPC over stdio and exposes the contracts in `schemas/mcp-tool-contracts.json`. To smoke-test the server without installing the plugin:
 
+`profile_item_load` measures the exact transient text of each newly generated Reading and Writing item before display. The daily-sprint skill requires the call, and `record_generated_item` requires its numerical result under `specification.surface_load`. Passage and option text are not saved in the learner model. Word-like token counts measure surface length, while the separate fidelity review checks the reasoning and distractors.
+
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | PYTHONPATH=src python3 scripts/mcp_server.py
 ```

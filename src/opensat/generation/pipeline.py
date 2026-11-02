@@ -100,6 +100,8 @@ def profile_surface_load(
         "unit_label_cells": sum(bool(_UNIT_LABEL_RE.search(cell)) for cell in flattened),
         "rectangular": bool(rows) and all(width == columns for width in widths),
     }
+    table_counts = _token_counts(" ".join(flattened))
+    table_profile.update(table_counts)
     option_counts = [_token_counts(option) for option in options]
     content_lengths = [counts["content_tokens"] for counts in option_counts]
     return {
@@ -116,6 +118,8 @@ def profile_surface_load(
                 else None
             ),
         },
+        "displayed_total_tokens": body["total_tokens"] + table_counts["total_tokens"] + sum(counts["total_tokens"] for counts in option_counts),
+        "displayed_content_tokens": body["content_tokens"] + table_counts["content_tokens"] + sum(counts["content_tokens"] for counts in option_counts),
     }
 
 

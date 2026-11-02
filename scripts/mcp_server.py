@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from opensat import LabService  # noqa: E402
 from opensat.practice_scan import ChromeReadOnlyAdapter  # noqa: E402
+from opensat.generation.pipeline import profile_surface_load  # noqa: E402
 
 
 SERVER_INFO = {"name": "opensat-local", "version": "0.1.0"}
@@ -23,6 +24,7 @@ def _schema(properties: dict[str, Any], required: list[str] | None = None) -> di
 
 
 TOOL_DEFINITIONS = [
+    {"name": "profile_item_load", "description": "Measure one transient Reading and Writing item before display. Returns word-like text counts and table/option proxies; stores no question content.", "inputSchema": _schema({"body_text": {"type": "string"}, "table": {"type": ["array", "null"]}, "options": {"type": "array", "minItems": 4, "maxItems": 4}}, ["body_text", "table", "options"])},
     {"name": "get_capabilities", "description": "Report available local, browser, and provider capabilities.", "inputSchema": _schema({})},
     {"name": "initialize_learner", "description": "Create an inspectable bilingual learner profile.", "inputSchema": _schema({"preferred_language": {"type": "string"}, "explanation_mode": {"type": "string"}, "reading_writing_score": {"type": ["integer", "null"]}, "math_score": {"type": ["integer", "null"]}, "total_score": {"type": ["integer", "null"]}, "test_date": {"type": ["string", "null"]}}, ["preferred_language"])},
     {"name": "get_learner_profile", "description": "Read one learner profile.", "inputSchema": _schema({"learner_id": {"type": "string"}}, ["learner_id"])},
@@ -61,6 +63,7 @@ TOOL_DEFINITIONS = [
 def _call(service: LabService, name: str, args: dict[str, Any]) -> Any:
     browser_adapter = ChromeReadOnlyAdapter(service)
     methods: dict[str, Callable[..., Any]] = {
+        "profile_item_load": profile_surface_load,
         "get_capabilities": service.get_capabilities,
         "initialize_learner": service.initialize_learner,
         "get_learner_profile": service.get_learner_profile,

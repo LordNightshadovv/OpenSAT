@@ -11,6 +11,7 @@
     "require explicit confirmation for deletion"
   ],
   "tools": [
+    "profile_item_load",
     "get_capabilities",
     "initialize_learner",
     "get_learner_profile",

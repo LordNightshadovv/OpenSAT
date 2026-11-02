@@ -22,7 +22,7 @@ Use several proxies because word count alone is easy to game and does not measur
 - Options: locally plausible distractors, whether the dominant near-neighbor fails exactly one constraint, and its content-length ratio to the key.
 - Timing: expected total response-time band and, when available, the cohort median and interquartile range.
 
-`profile_surface_load` computes deterministic body, table, and option proxies. Manual annotations supply reasoning and clause structure. Its output must retain `surface-load proxies; not comprehension difficulty`.
+`profile_surface_load` computes deterministic body, table, and option proxies, including word-like tokens in table cells and the combined displayed text. The MCP `profile_item_load` tool exposes this function for each generated item before display. Put captions and notes in `body_text`, and pass table cells as `table`; otherwise the combined count is incomplete. Manual annotations supply reasoning and clause structure. Its output must retain `surface-load proxies; not comprehension difficulty`. These counts are word-like units, not model tokenizer tokens.
 
 For hard cohort-calibrated simulations:
 
@@ -45,3 +45,5 @@ A future surface may pilot an optional `Reading complete` event. Do not add it t
 ## Implementation contract
 
 Generated hard items may declare `fidelity_targets`. Targets must identify a cohort with at least three reviewed sources and may set minimum, maximum, or exact rules over `fidelity_profile`. `validate_candidate` returns `needs_revision` when the profile is missing or a rule fails. These gates validate declared artifacts and arithmetic only—not official difficulty, efficacy, or score gains.
+
+Every newly generated item must be measured from its final displayed text before it is shown. `record_generated_item` requires the numerical `profile_item_load` result under `specification.surface_load`; it rejects an absent or malformed result. Store no passage, table, caption, or option text in that specification. Recompute the profile if an item is edited after measurement. This persistence check documents the measurement, while the daily-sprint workflow enforces its timing before display.

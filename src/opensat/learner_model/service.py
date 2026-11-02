@@ -638,6 +638,20 @@ class LabService:
         exposure_history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         ensure_safe_metadata(specification)
+        surface_load = specification.get("surface_load")
+        if not isinstance(surface_load, dict) or surface_load.get("proxy_notice") != "surface-load proxies; not comprehension difficulty":
+            raise ValueError("generated items require a profile_item_load result in specification.surface_load")
+        body = surface_load.get("body")
+        table = surface_load.get("table")
+        options = surface_load.get("options")
+        if not all(isinstance(part, dict) for part in (body, table, options)):
+            raise ValueError("surface_load requires body, table, and options measurements")
+        if any(isinstance(body.get(key), bool) or not isinstance(body.get(key), int) or body[key] < 0 for key in ("total_tokens", "content_tokens", "sentences")):
+            raise ValueError("surface_load body measurements are invalid")
+        if not isinstance(options.get("total_tokens"), list) or len(options["total_tokens"]) != 4:
+            raise ValueError("surface_load requires counts for all four options")
+        if isinstance(surface_load.get("displayed_total_tokens"), bool) or not isinstance(surface_load.get("displayed_total_tokens"), int) or surface_load["displayed_total_tokens"] < body["total_tokens"]:
+            raise ValueError("surface_load displayed_total_tokens is invalid")
         exposure_history = list(exposure_history or [])
         ensure_safe_metadata(exposure_history)
         connection, _ = self._open()

@@ -166,6 +166,21 @@ class VerticalSliceTests(unittest.TestCase):
             status="paused",
         )
         self.assertEqual(advanced["cursor"], "page-2")
+        surface_load = profile_surface_load(
+            "A short synthetic passage asks the learner to identify a logical transition.",
+            None,
+            ["However", "Therefore", "Similarly", "For example"],
+        )
+        with self.assertRaisesRegex(ValueError, "profile_item_load"):
+            self.service.record_generated_item(
+                learner_id=self.learner_id,
+                provider="local-synthetic-fixture",
+                target_skill="transitions",
+                intended_difficulty="medium",
+                validation_status="approved",
+                item_version="fixture-missing-load",
+                specification={"synthetic": True},
+            )
         item = self.service.record_generated_item(
             learner_id=self.learner_id,
             provider="local-synthetic-fixture",
@@ -174,7 +189,7 @@ class VerticalSliceTests(unittest.TestCase):
             intended_difficulty="medium",
             validation_status="approved",
             item_version="fixture-1",
-            specification={"synthetic": True, "transfer_distance": "near"},
+            specification={"synthetic": True, "transfer_distance": "near", "surface_load": surface_load},
         )
         self.assertIn("Simulated SAT-style practice", item["simulated_label"])
         duplicate = self.service.record_generated_item(
@@ -185,7 +200,7 @@ class VerticalSliceTests(unittest.TestCase):
             intended_difficulty="medium",
             validation_status="approved",
             item_version="fixture-1",
-            specification={"synthetic": True, "transfer_distance": "near"},
+            specification={"synthetic": True, "transfer_distance": "near", "surface_load": surface_load},
         )
         self.assertFalse(duplicate["created"])
         self.assertEqual(duplicate["item_id"], item["item_id"])
@@ -733,6 +748,13 @@ class VerticalSliceTests(unittest.TestCase):
             ],
             ["One value changed.", "Two linked values changed.", "The sexes differed.", "One month was cooler."],
         )
+        self.assertEqual(
+            shortened_surface["displayed_total_tokens"],
+            shortened_surface["body"]["total_tokens"]
+            + shortened_surface["table"]["total_tokens"]
+            + sum(shortened_surface["options"]["total_tokens"]),
+        )
+        self.assertGreater(shortened_surface["table"]["total_tokens"], 0)
         shortened_surface["body"].update({
             "finite_clauses": 2, "subordinate_clauses": 0, "propositions": 2, "relations": 1,
         })

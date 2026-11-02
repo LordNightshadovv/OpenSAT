@@ -166,11 +166,9 @@ class VerticalSliceTests(unittest.TestCase):
             status="paused",
         )
         self.assertEqual(advanced["cursor"], "page-2")
-        surface_load = profile_surface_load(
-            "A short synthetic passage asks the learner to identify a logical transition.",
-            None,
-            ["However", "Therefore", "Similarly", "For example"],
-        )
+        body_text = "A short synthetic passage asks the learner to identify a logical transition."
+        options = ["However", "Therefore", "Similarly", "For example"]
+        surface_load = profile_surface_load(body_text, None, options)
         with self.assertRaisesRegex(ValueError, "profile_item_load"):
             self.service.record_generated_item(
                 learner_id=self.learner_id,
@@ -180,6 +178,9 @@ class VerticalSliceTests(unittest.TestCase):
                 validation_status="approved",
                 item_version="fixture-missing-load",
                 specification={"synthetic": True},
+                body_text=body_text,
+                table=None,
+                options=options,
             )
         item = self.service.record_generated_item(
             learner_id=self.learner_id,
@@ -190,6 +191,9 @@ class VerticalSliceTests(unittest.TestCase):
             validation_status="approved",
             item_version="fixture-1",
             specification={"synthetic": True, "transfer_distance": "near", "surface_load": surface_load},
+            body_text=body_text,
+            table=None,
+            options=options,
         )
         self.assertIn("Simulated SAT-style practice", item["simulated_label"])
         duplicate = self.service.record_generated_item(
@@ -201,9 +205,25 @@ class VerticalSliceTests(unittest.TestCase):
             validation_status="approved",
             item_version="fixture-1",
             specification={"synthetic": True, "transfer_distance": "near", "surface_load": surface_load},
+            body_text=body_text,
+            table=None,
+            options=options,
         )
         self.assertFalse(duplicate["created"])
         self.assertEqual(duplicate["item_id"], item["item_id"])
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            self.service.record_generated_item(
+                learner_id=self.learner_id,
+                provider="local-synthetic-fixture",
+                target_skill="transitions",
+                intended_difficulty="medium",
+                validation_status="approved",
+                item_version="fixture-edited",
+                specification={"synthetic": True, "surface_load": surface_load},
+                body_text=body_text + " Another sentence.",
+                table=None,
+                options=options,
+            )
 
     def test_persistence_boundary_rejects_secrets_and_official_content_fields(self) -> None:
         with self.assertRaises(ValueError):

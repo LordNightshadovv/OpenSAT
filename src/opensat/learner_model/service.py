@@ -31,6 +31,7 @@ from ..domain.constants import (
     TRANSFER_DISTANCES,
     band_for_score,
 )
+from ..generation.pipeline import profile_surface_load
 from ..privacy.paths import DataPaths, ensure_data_layout
 from ..privacy.redaction import dumps_safe, ensure_safe_metadata, load_json_object
 from ..scheduling.engine import build_daily_plan, choose_transfer_distance, next_review_date
@@ -634,6 +635,9 @@ class LabService:
         validation_status: str,
         item_version: str,
         specification: dict[str, Any],
+        body_text: str,
+        table: list[list[Any]] | None,
+        options: list[str],
         target_error_signature: str | None = None,
         exposure_history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
@@ -642,16 +646,19 @@ class LabService:
         if not isinstance(surface_load, dict) or surface_load.get("proxy_notice") != "surface-load proxies; not comprehension difficulty":
             raise ValueError("generated items require a profile_item_load result in specification.surface_load")
         body = surface_load.get("body")
-        table = surface_load.get("table")
-        options = surface_load.get("options")
-        if not all(isinstance(part, dict) for part in (body, table, options)):
+        table_profile = surface_load.get("table")
+        option_profile = surface_load.get("options")
+        if not all(isinstance(part, dict) for part in (body, table_profile, option_profile)):
             raise ValueError("surface_load requires body, table, and options measurements")
         if any(isinstance(body.get(key), bool) or not isinstance(body.get(key), int) or body[key] < 0 for key in ("total_tokens", "content_tokens", "sentences")):
             raise ValueError("surface_load body measurements are invalid")
-        if not isinstance(options.get("total_tokens"), list) or len(options["total_tokens"]) != 4:
+        if not isinstance(option_profile.get("total_tokens"), list) or len(option_profile["total_tokens"]) != 4:
             raise ValueError("surface_load requires counts for all four options")
         if isinstance(surface_load.get("displayed_total_tokens"), bool) or not isinstance(surface_load.get("displayed_total_tokens"), int) or surface_load["displayed_total_tokens"] < body["total_tokens"]:
             raise ValueError("surface_load displayed_total_tokens is invalid")
+        computed_load = profile_surface_load(body_text, table, options)
+        if surface_load != computed_load:
+            raise ValueError("surface_load does not match the final generated item text; rerun profile_item_load")
         exposure_history = list(exposure_history or [])
         ensure_safe_metadata(exposure_history)
         connection, _ = self._open()

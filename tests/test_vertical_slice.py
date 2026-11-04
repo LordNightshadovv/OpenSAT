@@ -196,6 +196,16 @@ class VerticalSliceTests(unittest.TestCase):
             options=options,
         )
         self.assertIn("Simulated SAT-style practice", item["simulated_label"])
+        connection, _ = self.service._open()
+        try:
+            stored = connection.execute(
+                "SELECT specification_json FROM generated_items WHERE item_id = ?", (item["item_id"],)
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        self.assertNotIn(body_text, stored)
+        self.assertNotIn("For example", stored)
+        self.assertIn("mean_zipf_frequency", stored)
         duplicate = self.service.record_generated_item(
             learner_id=self.learner_id,
             provider="local-synthetic-fixture",
@@ -704,6 +714,28 @@ class VerticalSliceTests(unittest.TestCase):
             {**candidate, "rhetorical_synthesis_scenario_check": True}, synthesis
         )
         self.assertEqual(synthesis_approved["status"], "approved")
+
+    def test_reading_features_distinguish_word_familiarity_from_length(self) -> None:
+        choices = ["The first result.", "The second result.", "The third result.", "The fourth result."]
+        familiar = profile_surface_load("The dog ran across the street because the door was open.", None, choices)
+        unfamiliar = profile_surface_load("The ichthyologist scrutinized the pelagic specimen because the gills were anomalous.", None, choices)
+        familiar_features = familiar["body"]["reading_features"]
+        unfamiliar_features = unfamiliar["body"]["reading_features"]
+        self.assertEqual(familiar["body"]["total_tokens"], unfamiliar["body"]["total_tokens"])
+        self.assertGreater(
+            familiar_features["lexical"]["mean_zipf_frequency"],
+            unfamiliar_features["lexical"]["mean_zipf_frequency"],
+        )
+        self.assertEqual(familiar_features["syntax_cues"]["subordination_cues"], 1)
+        self.assertTrue(familiar_features["readability"]["short_text_caution"])
+        separated = profile_surface_load(
+            "The dog ran across the street. Which finding supports the claim?",
+            None,
+            choices,
+            stimulus_text="The dog ran across the street.",
+        )
+        self.assertEqual(separated["body"]["reading_features"]["text_scope"], "stimulus_only")
+        self.assertEqual(separated["body"]["reading_features"]["syntax_cues"]["mean_words_per_sentence"], 6)
 
     def test_hard_item_fidelity_profile_rejects_underloaded_surface_and_reasoning(self) -> None:
         specification = ItemSpecification(

@@ -638,6 +638,7 @@ class LabService:
         body_text: str,
         table: list[list[Any]] | None,
         options: list[str],
+        stimulus_text: str | None = None,
         target_error_signature: str | None = None,
         exposure_history: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
@@ -656,7 +657,7 @@ class LabService:
             raise ValueError("surface_load requires counts for all four options")
         if isinstance(surface_load.get("displayed_total_tokens"), bool) or not isinstance(surface_load.get("displayed_total_tokens"), int) or surface_load["displayed_total_tokens"] < body["total_tokens"]:
             raise ValueError("surface_load displayed_total_tokens is invalid")
-        computed_load = profile_surface_load(body_text, table, options)
+        computed_load = profile_surface_load(body_text, table, options, stimulus_text)
         if surface_load != computed_load:
             raise ValueError("surface_load does not match the final generated item text; rerun profile_item_load")
         exposure_history = list(exposure_history or [])

@@ -68,11 +68,19 @@ python3 ./scripts/mcp_server.py
 
 The server speaks JSON-RPC over stdio and exposes the contracts in `schemas/mcp-tool-contracts.json`. To smoke-test the server without installing the plugin:
 
-`profile_item_load` measures the exact transient text of each newly generated Reading and Writing item before display. The daily-sprint skill requires the call, and `record_generated_item` recomputes the counts from final transient text and rejects a missing or mismatched numerical result under `specification.surface_load`. Passage and option text are not saved in the learner model. Word-like token counts measure surface length, while the separate fidelity review checks the reasoning and distractors.
-
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | PYTHONPATH=src python3 scripts/mcp_server.py
 ```
+
+`profile_item_load` measures the exact transient text of each newly generated Reading and Writing item before display. It reports word-like counts, `wordfreq` vocabulary frequencies, sentence and connective cues, and a length-based Automated Readability Index. Supply `stimulus_text` when the passage can be separated from the stem. The daily-sprint skill requires the call, and `record_generated_item` recomputes the profile from final transient text and rejects a missing or mismatched result under `specification.surface_load`. Passage and option text are not saved in the learner model. These local measures are separate from the reasoning and distractor review.
+
+The Python package declares `wordfreq==3.1.1` as a runtime dependency. For this local Marketplace installation, install it into the Python used by the MCP server before `codex plugin add opensat@personal`:
+
+```bash
+python3 -m pip install --user 'wordfreq==3.1.1'
+```
+
+OpenSAT uses [wordfreq](https://github.com/rspeer/wordfreq) by Robyn Speer for frequency estimates. Its code is Apache 2.0 and its data have separate attribution and share-alike notices in the upstream [NOTICE](https://github.com/rspeer/wordfreq/blob/master/NOTICE.md). OpenSAT depends on the library; it does not copy its corpus into this repository. The ARI and syntax cues are implemented locally without downloading a parser model.
 
 ## Install locally in Codex
 

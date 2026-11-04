@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from importlib.metadata import version
+from statistics import mean, median
 from typing import Any
+
+from wordfreq import zipf_frequency
 
 from ..domain.constants import SIMULATED_LABEL
 from ..privacy.redaction import ensure_safe_metadata
@@ -30,6 +34,12 @@ _FUNCTION_WORDS = frozenset({
     "which", "while", "who", "whom", "whose", "why", "will", "with", "would", "you",
     "your", "yours",
 })
+_SUBORDINATION_CUES = frozenset({
+    "although", "because", "despite", "if", "unless", "whereas", "while",
+    "which", "who", "whose", "that",
+})
+_NEGATION_CUES = frozenset({"no", "not", "neither", "nor", "never", "without"})
+_WORDFREQ_VERSION = version("wordfreq")
 
 
 @dataclass(frozen=True)
@@ -64,14 +74,62 @@ def _token_counts(text: str) -> dict[str, int]:
     return {"total_tokens": len(tokens), "content_tokens": len(content_tokens)}
 
 
+def _reading_features(text: str) -> dict[str, Any]:
+    """Cheap local language proxies; no model inference or difficulty label."""
+    words = [token for token in _TOKEN_RE.findall(text) if token[0].isalpha()]
+    sentences = [
+        part for part in re.split(r"(?<=[.!?])\s+(?=[A-Z])", text.strip())
+        if part.strip()
+    ]
+    content_words = [word for word in words if word.lower() not in _FUNCTION_WORDS]
+    frequencies = [zipf_frequency(word.lower(), "en") for word in content_words]
+    lengths = [len(_TOKEN_RE.findall(sentence)) for sentence in sentences]
+    # ARI is a conventional length-based readability formula. It is unstable on short SAT passages.
+    ari = None
+    if words and sentences:
+        ari = (
+            4.71 * sum(len(word) for word in words) / len(words)
+            + 0.5 * len(words) / len(sentences)
+            - 21.43
+        )
+    return {
+        "method": f"wordfreq-{_WORDFREQ_VERSION} + deterministic surface cues",
+        "lexical": {
+            "content_words": len(content_words),
+            "mean_zipf_frequency": round(mean(frequencies), 2) if frequencies else None,
+            "median_zipf_frequency": round(median(frequencies), 2) if frequencies else None,
+            "share_below_zipf_3": (
+                round(sum(value < 3 for value in frequencies) / len(frequencies), 3)
+                if frequencies else None
+            ),
+            "zero_frequency_words": sum(value == 0 for value in frequencies),
+        },
+        "syntax_cues": {
+            "mean_words_per_sentence": round(mean(lengths), 2) if lengths else None,
+            "longest_sentence_words": max(lengths, default=0),
+            "commas": text.count(","),
+            "semicolons": text.count(";"),
+            "subordination_cues": sum(word.lower() in _SUBORDINATION_CUES for word in words),
+            "negation_cues": sum(word.lower() in _NEGATION_CUES for word in words),
+        },
+        "readability": {
+            "automated_readability_index": round(ari, 2) if ari is not None else None,
+            "short_text_caution": len(words) < 100,
+        },
+    }
+
+
 def profile_surface_load(
     body_text: str,
     table: list[list[Any]] | None,
     options: list[str],
+    stimulus_text: str | None = None,
 ) -> dict[str, Any]:
     """Return reproducible surface-load proxies without claiming comprehension difficulty."""
     if not isinstance(body_text, str) or not body_text.strip():
         raise ValueError("body_text must be a non-empty string")
+    if stimulus_text is not None and (not isinstance(stimulus_text, str) or not stimulus_text.strip()):
+        raise ValueError("stimulus_text must be nonempty text when supplied")
     if not isinstance(options, list) or len(options) != 4 or any(
         not isinstance(option, str) or not option.strip() for option in options
     ):
@@ -82,6 +140,8 @@ def profile_surface_load(
         for segment in re.split(r"(?<=[.!?])\s+(?=[A-Z])", body_text.strip())
         if segment.strip()
     ])
+    body["reading_features"] = _reading_features(stimulus_text if stimulus_text is not None else body_text)
+    body["reading_features"]["text_scope"] = "stimulus_only" if stimulus_text is not None else "body_including_stem"
 
     rows = table or []
     if not isinstance(rows, list) or any(not isinstance(row, list) for row in rows):

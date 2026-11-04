@@ -6,7 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "opensat"
 version = "0.1.0"
 description = "Local-first SAT Reading and Writing diagnostic practice engine"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
+dependencies = ["wordfreq==3.1.1"]
 license = {text = "MIT"}
 
 [tool.setuptools.packages.find]

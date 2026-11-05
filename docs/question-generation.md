@@ -3,6 +3,7 @@
 Generated items are targeted practice, not official content and not a score-conversion instrument.
 
 Read `reading-writing-item-style.md` and `item-fidelity.md` before specifying or generating a Reading and Writing item. Together they define an originality-preserving form, distractor, and reading-to-answer load contract.
+For hard/challenge items, execute the bounded worker stages in `multi-agent-item-workflow.md` and record the required checks only after each stage runs.
 Use `public-question-patterns-2026.md` only to choose a source-backed *abstract* trap mechanism. Do not use its linked official or recalled examples as item text, answer keys, or difficulty labels.
 
 ## Item specification

@@ -1,0 +1,24 @@
+# Bounded multi-agent workflow for hard Reading and Writing items
+
+Use this workflow for wholly original hard or challenge Reading and Writing items. It applies to Inferences, Command of Evidence, Cross-Text Connections, and other Reading and Writing families; it does not cover Math. The four roles are stages, not necessarily four paid model calls.
+
+## Cost-bounded execution
+
+Batch up to three items of one sprint block per worker call. The main agent is the architect and final reviewer. Use a lower cost worker such as `gpt-6-luna` for distractor drafting, a **fresh** lower cost worker for blind solving, and a separate lower cost worker for choices-only audit when available. In Codex, launch workers with `fork_turns="none"`; give each only its stage input. `gpt-6.1-terra` can be reserved for an unresolved ambiguity or a weak near-neighbor. On a host that does not offer these models, use its available lower cost equivalents. Do not claim that any particular model represents a 1350 or 1550 student. Bound each item to one draft and one revision; reject an item that still fails. Transfer items are drafted after the main block is answered, in a new batch.
+
+1. **Architect (main agent):** Specify the exact assessed operation, a compact proposition/constraint map, original stimulus and stem, key, and a short proof. Write the passage naturally. Do not insert a sentence explaining away an alternative interpretation. No fixed Lexile, passage length, or jargon quota substitutes for matching reviewed same-family references.
+2. **Crafter (worker):** Receive the original stimulus, stem, key, and abstract target trap. Return more than three candidates, each with one semantic mutation, a plausible quick-reader error, and a proposed minimum sufficient constraint that defeats it. Vary mechanisms by the passage rather than reserving fixed letters for fixed traps. The main agent selects and shuffles three candidates. Do not reuse official wording.
+3. **Blind solver (fresh worker):** Receive only the final stimulus, stem, and shuffled options. No key, proof, trap labels, or earlier agent reasoning. Return one answer, a brief reason for each elimination, and any defensible second answer. Model hesitation, confidence, or reasoning length is a triage signal only. A wrong blind answer triggers review; it does not prove the distractor is good.
+4. **Auditor (separate worker and main agent):** First inspect only the four options for form and lexical shortcuts. Then inspect the full item for uniqueness, the smallest sufficient constraint defeating the closest distractor, stimulus disclosure, originality, and fidelity to the exact task. Run `audit_choice_parity(options, proposed_key)` and `profile_item_load(...)` on the final text. Revise any answer-revealing cue; a flagged cue is advisory until inspected in context, while a stimulus disclosure flag blocks approval.
+
+The main agent compares all reviews. Call `validate_generated_candidate` through the local MCP before display. It requires `blind_solve_check`, `choice_parity_check`, and `minimum_constraint_check` for hard/challenge items, in addition to the existing checks. Set a check true only after its stage actually ran and the item passed. Do not invent worker receipts. If workers are unavailable, say the multi-agent review did not run and do not present the item as cohort-calibrated or 1550–1600 equivalent.
+
+Keep worker replies compact and structured. The crafter returns `{item_id, candidates:[{text, trap, plausible_misreading, minimal_constraint}]}`. The blind solver returns `{item_id, selected_option, eliminated_options, possible_second_option}`. The auditor returns `{item_id, options_only_cue, uniqueness, minimum_constraint, stimulus_disclosure, revision_needed}`. Request short justifications, not long reasoning traces. The main agent must verify the claimed minimum constraint against the passage and the exact stem; a worker label alone does not satisfy the check.
+
+## Data boundary
+
+Send workers only newly written synthetic item text and abstract skill/trap targets. Keep learner identity, responses, personal files, local archive questions, screenshots, and publisher source text out of worker prompts. Keep drafts and reviews transient; `record_generated_item` stores only derived metadata and recomputes the final text profile. The workflow uses the host's model-routing tools and does not require an API key or add telemetry to OpenSAT.
+
+## Evidence ceiling
+
+Deterministic counts and form flags remove easy giveaways. Independent model reviews catch some logic failures. Neither establishes SAT psychometric difficulty. The useful outcome measure is how real learners respond under timed conditions: which option they choose, whether they change answers, how long they take, and whether the same trap transfers to a new item. Use those observations to refine the abstract trap bank without storing official question text.

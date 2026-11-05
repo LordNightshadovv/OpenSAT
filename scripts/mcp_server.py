@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from opensat import LabService  # noqa: E402
 from opensat.practice_scan import ChromeReadOnlyAdapter  # noqa: E402
-from opensat.generation.pipeline import profile_surface_load  # noqa: E402
+from opensat.generation.pipeline import audit_choice_parity, profile_surface_load, validate_generated_candidate  # noqa: E402
 
 
 SERVER_INFO = {"name": "opensat-local", "version": "0.1.0"}
@@ -25,6 +25,8 @@ def _schema(properties: dict[str, Any], required: list[str] | None = None) -> di
 
 TOOL_DEFINITIONS = [
     {"name": "profile_item_load", "description": "Measure one transient Reading and Writing item before display. Returns text load, local vocabulary familiarity, sentence and syntax cues, and readability proxies; stores no question content.", "inputSchema": _schema({"body_text": {"type": "string"}, "table": {"type": ["array", "null"]}, "options": {"type": "array", "minItems": 4, "maxItems": 4}, "stimulus_text": {"type": ["string", "null"]}}, ["body_text", "table", "options"])},
+    {"name": "audit_choice_parity", "description": "Screen the four transient Reading and Writing choices for length, hedging, absolute-language, and opening-form cues that may reveal the proposed key. Advisory only; stores no question content.", "inputSchema": _schema({"options": {"type": "array", "minItems": 4, "maxItems": 4}, "proposed_key": {"type": "string", "enum": ["A", "B", "C", "D"]}}, ["options", "proposed_key"])},
+    {"name": "validate_generated_candidate", "description": "Validate one transient original item specification and candidate, including required hard-item blind, parity, and minimum-constraint checks. Stores no question content.", "inputSchema": _schema({"specification": {"type": "object"}, "candidate": {"type": "object"}}, ["specification", "candidate"])},
     {"name": "get_capabilities", "description": "Report available local, browser, and provider capabilities.", "inputSchema": _schema({})},
     {"name": "initialize_learner", "description": "Create an inspectable bilingual learner profile.", "inputSchema": _schema({"preferred_language": {"type": "string"}, "explanation_mode": {"type": "string"}, "reading_writing_score": {"type": ["integer", "null"]}, "math_score": {"type": ["integer", "null"]}, "total_score": {"type": ["integer", "null"]}, "test_date": {"type": ["string", "null"]}}, ["preferred_language"])},
     {"name": "get_learner_profile", "description": "Read one learner profile.", "inputSchema": _schema({"learner_id": {"type": "string"}}, ["learner_id"])},
@@ -64,6 +66,8 @@ def _call(service: LabService, name: str, args: dict[str, Any]) -> Any:
     browser_adapter = ChromeReadOnlyAdapter(service)
     methods: dict[str, Callable[..., Any]] = {
         "profile_item_load": profile_surface_load,
+        "audit_choice_parity": audit_choice_parity,
+        "validate_generated_candidate": validate_generated_candidate,
         "get_capabilities": service.get_capabilities,
         "initialize_learner": service.initialize_learner,
         "get_learner_profile": service.get_learner_profile,

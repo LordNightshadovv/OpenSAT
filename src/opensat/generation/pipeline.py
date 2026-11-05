@@ -45,6 +45,8 @@ _DISCLOSURE_PATTERNS = (
     ("inference_spelled_out", re.compile(r"\b(?:would|could|does|do|did)\s+not\s+by\s+itself\s+(?:show|prove|establish|mean|demonstrate)\b", re.I)),
     ("interpretation_spelled_out", re.compile(r"\b(?:this|that|these|those)\s+(?:does|do|did)\s+not\s+(?:mean|show|prove)\s+that\b", re.I)),
 )
+_HEDGE_RE = re.compile(r"\b(?:may|might|could|likely|perhaps|possibly|suggests?|tends?\s+to|partly|primarily)\b", re.I)
+_ABSOLUTE_RE = re.compile(r"\b(?:all|always|never|no|every|none|completely|entirely|impossible|certainly)\b", re.I)
 
 
 @dataclass(frozen=True)
@@ -127,6 +129,39 @@ def _reading_features(text: str) -> dict[str, Any]:
 def _disclosure_flags(text: str) -> list[str]:
     """Flag high-confidence prose that supplies the intended exclusion to the learner."""
     return [code for code, pattern in _DISCLOSURE_PATTERNS if pattern.search(text)]
+
+
+def audit_choice_parity(options: list[str], proposed_key: str) -> dict[str, Any]:
+    """Return content-free form cues for review; no psychometric difficulty claim."""
+    if not isinstance(options, list) or len(options) != 4 or any(
+        not isinstance(option, str) or not option.strip() for option in options
+    ):
+        raise ValueError("options must contain four non-empty strings")
+    if proposed_key not in {"A", "B", "C", "D"}:
+        raise ValueError("proposed_key must be A, B, C, or D")
+    lengths = [len(_TOKEN_RE.findall(option)) for option in options]
+    hedges = [bool(_HEDGE_RE.search(option)) for option in options]
+    absolutes = [bool(_ABSOLUTE_RE.search(option)) for option in options]
+    starts = ["infinitive" if option.strip().lower().startswith("to ") else "other" for option in options]
+    key_index = ord(proposed_key) - ord("A")
+    other_lengths = [length for index, length in enumerate(lengths) if index != key_index]
+    flags = []
+    if hedges[key_index] and sum(hedges) == 1:
+        flags.append("key_only_hedge")
+    if not absolutes[key_index] and sum(absolutes) == 3:
+        flags.append("distractors_only_absolute")
+    if starts.count(starts[key_index]) == 1:
+        flags.append("key_unique_opening_form")
+    if lengths[key_index] > 1.35 * max(other_lengths) or lengths[key_index] < 0.65 * min(other_lengths):
+        flags.append("key_length_outlier")
+    return {
+        "word_like_lengths": lengths,
+        "hedge_presence": hedges,
+        "absolute_presence": absolutes,
+        "opening_form": starts,
+        "review_flags": flags,
+        "notice": "advisory form cues; no student-difficulty estimate",
+    }
 
 
 def profile_surface_load(
@@ -268,6 +303,8 @@ def validate_candidate(candidate: dict[str, Any], specification: ItemSpecificati
     }
     if specification.skill == "rhetorical_synthesis":
         required.add("rhetorical_synthesis_scenario_check")
+    if specification.difficulty in {"hard", "challenge"}:
+        required.update({"blind_solve_check", "choice_parity_check", "minimum_constraint_check"})
     missing = sorted(required.difference(candidate))
     if missing:
         raise ValueError(f"Candidate is missing validation stages: {', '.join(missing)}")
@@ -279,6 +316,10 @@ def validate_candidate(candidate: dict[str, Any], specification: ItemSpecificati
         raise ValueError("Inspect every distractor before approval")
     if candidate.get("proposed_key") not in {"A", "B", "C", "D"}:
         raise ValueError("proposed_key must be A, B, C, or D")
+    if candidate["independent_solution"] != candidate["proposed_key"]:
+        return {"status": "needs_revision", "simulated_label": SIMULATED_LABEL, "specification": specification.as_dict(), "fidelity_failures": []}
+    if set(defensibility) != {"A", "B", "C", "D"} or [key for key, valid in defensibility.items() if valid is True] != [candidate["proposed_key"]]:
+        return {"status": "needs_revision", "simulated_label": SIMULATED_LABEL, "specification": specification.as_dict(), "fidelity_failures": []}
     fidelity_failures: list[str] = []
     if specification.fidelity_targets is not None:
         if "fidelity_profile" not in candidate:
@@ -301,6 +342,14 @@ def validate_candidate(candidate: dict[str, Any], specification: ItemSpecificati
         "specification": specification.as_dict(),
         "proposed_key": candidate["proposed_key"],
     }
+
+
+def validate_generated_candidate(specification: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    """Expose the transient candidate gate to the local MCP companion."""
+    if not isinstance(specification, dict) or not isinstance(candidate, dict):
+        raise ValueError("specification and candidate must be objects")
+    ensure_safe_metadata(specification)
+    return validate_candidate(candidate, ItemSpecification(**specification))
 
 
 def validate_purpose_groups(

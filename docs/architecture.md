@@ -29,6 +29,7 @@ flowchart TD
 - `src/opensat/diagnosis/`: adaptive autopsy prompts and conservative hypothesis/signature status transitions.
 - `src/opensat/scheduling/`: transparent review heuristic and exact 20-minute plans.
 - `src/opensat/generation/`: item specification and multi-stage validation gate.
+- `docs/multi-agent-item-workflow.md`: host-orchestrated, bounded worker stages for hard Reading and Writing items; the local MCP exposes deterministic choice-parity review but does not itself call hosted models.
 - `src/opensat/providers/`: future provider contracts, including the non-live Gemini module stub.
 - `scripts/`: CLI and MCP entrypoints.
 - `scripts/self_improvement.py`: freeze and receipt gate for a bounded plugin-development experiment; it is not an MCP learner-data tool.

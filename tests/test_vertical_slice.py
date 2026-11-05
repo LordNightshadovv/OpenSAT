@@ -17,8 +17,10 @@ from opensat import LabService
 from opensat.domain.constants import PILOT_BANDS
 from opensat.generation.pipeline import (
     ItemSpecification,
+    audit_choice_parity,
     profile_surface_load,
     validate_candidate,
+    validate_generated_candidate,
     validate_purpose_groups,
 )
 from opensat.privacy.paths import ensure_data_layout
@@ -702,6 +704,8 @@ class VerticalSliceTests(unittest.TestCase):
         }
         approved = validate_candidate(candidate, specification)
         self.assertEqual(approved["status"], "approved")
+        self.assertEqual(validate_generated_candidate(specification.as_dict(), candidate)["status"], "approved")
+        self.assertEqual(validate_candidate({**candidate, "independent_solution": "A"}, specification)["status"], "needs_revision")
         synthesis = replace(
             specification,
             skill="rhetorical_synthesis",
@@ -766,6 +770,21 @@ class VerticalSliceTests(unittest.TestCase):
         clean = profile_surface_load(definition, None, options, definition)
         self.assertEqual(clean["body"]["stimulus_disclosure_flags"], [])
 
+    def test_choice_parity_flags_key_only_hedge_and_length_without_text(self) -> None:
+        audit = audit_choice_parity(
+            [
+                "All observations support the first interpretation.",
+                "The observations may support the second interpretation under the specified condition after the later trial.",
+                "No observations support the third interpretation.",
+                "Every observation supports the fourth interpretation.",
+            ],
+            "B",
+        )
+        self.assertIn("key_only_hedge", audit["review_flags"])
+        self.assertIn("distractors_only_absolute", audit["review_flags"])
+        self.assertIn("key_length_outlier", audit["review_flags"])
+        self.assertNotIn("observations", str(audit))
+
     def test_hard_item_fidelity_profile_rejects_underloaded_surface_and_reasoning(self) -> None:
         specification = ItemSpecification(
             domain="reading-writing",
@@ -816,11 +835,17 @@ class VerticalSliceTests(unittest.TestCase):
             "shortcut_check": True,
             "wording_check": True,
             "stimulus_non_disclosure_check": True,
+            "blind_solve_check": True,
+            "choice_parity_check": True,
+            "minimum_constraint_check": True,
             "difficulty_check": True,
             "college_board_style_check": True,
             "difficulty_mechanism_check": True,
             "originality_check": True,
         }
+        missing_blind_review = {key: value for key, value in base_candidate.items() if key != "blind_solve_check"}
+        with self.assertRaisesRegex(ValueError, "blind_solve_check"):
+            validate_candidate(missing_blind_review, specification)
         shortened_surface = profile_surface_load(
             "Researchers compared wing size in two months. The table shows the results.",
             [

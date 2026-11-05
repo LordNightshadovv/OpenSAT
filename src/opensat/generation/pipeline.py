@@ -40,6 +40,11 @@ _SUBORDINATION_CUES = frozenset({
 })
 _NEGATION_CUES = frozenset({"no", "not", "neither", "nor", "never", "without"})
 _WORDFREQ_VERSION = version("wordfreq")
+_DISCLOSURE_PATTERNS = (
+    ("authorial_claim_disclaimer", re.compile(r"\b(?:author|scholar|researcher|writer|study|text|passage)\s+(?:does|do|did)\s+not\s+claim\b", re.I)),
+    ("inference_spelled_out", re.compile(r"\b(?:would|could|does|do|did)\s+not\s+by\s+itself\s+(?:show|prove|establish|mean|demonstrate)\b", re.I)),
+    ("interpretation_spelled_out", re.compile(r"\b(?:this|that|these|those)\s+(?:does|do|did)\s+not\s+(?:mean|show|prove)\s+that\b", re.I)),
+)
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,11 @@ def _reading_features(text: str) -> dict[str, Any]:
     }
 
 
+def _disclosure_flags(text: str) -> list[str]:
+    """Flag high-confidence prose that supplies the intended exclusion to the learner."""
+    return [code for code, pattern in _DISCLOSURE_PATTERNS if pattern.search(text)]
+
+
 def profile_surface_load(
     body_text: str,
     table: list[list[Any]] | None,
@@ -140,8 +150,10 @@ def profile_surface_load(
         for segment in re.split(r"(?<=[.!?])\s+(?=[A-Z])", body_text.strip())
         if segment.strip()
     ])
-    body["reading_features"] = _reading_features(stimulus_text if stimulus_text is not None else body_text)
+    stimulus = stimulus_text if stimulus_text is not None else body_text
+    body["reading_features"] = _reading_features(stimulus)
     body["reading_features"]["text_scope"] = "stimulus_only" if stimulus_text is not None else "body_including_stem"
+    body["stimulus_disclosure_flags"] = _disclosure_flags(stimulus)
 
     rows = table or []
     if not isinstance(rows, list) or any(not isinstance(row, list) for row in rows):
@@ -248,6 +260,7 @@ def validate_candidate(candidate: dict[str, Any], specification: ItemSpecificati
         "option_defensibility",
         "shortcut_check",
         "wording_check",
+        "stimulus_non_disclosure_check",
         "difficulty_check",
         "college_board_style_check",
         "difficulty_mechanism_check",

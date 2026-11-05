@@ -25,6 +25,8 @@ Read `../../docs/learning-engine.md`, `../../docs/learner-model.md`, `../../docs
 10. After each final answer is locked and its timer is stopped—but before correctness or explanation is shown—collect one apparent-difficulty tag: `routine`, `noticeable`, or `intimidating`. Then record actual minutes, activity outcomes, confidence, and fatigue. Do not ask the learner to estimate objective difficulty, and do not punish a learner for stopping at the planned exit condition.
 11. After a persisted sprint section or completed session, call `get_on_demand_recommendations`. Present the highest-value optional follow-up blueprints when recent evidence is incorrect, omitted, slow, uncertain, changed, help-dependent, or due for review. Do not suppress these recommendations just because aggregate accuracy is high; if no issue-specific evidence exists, say so explicitly.
 
+For every hard generated item, also follow `../../docs/question-generation.md`: construct near-neighbor candidates from a plausible fast-reader misreading and a single semantic change, find the minimum sufficient constraint that defeats the closest one, blind-solve, and check choices alone for form cues. Apply `stimulus_non_disclosure_check` before display. Do not add passage or notes sentences that explain away an inference, state what an author does not claim, or defend the intended key; a needed niche-term definition is the sole exception. Inspect `body.stimulus_disclosure_flags` from the required `profile_item_load` call and revise any flagged stimulus before display.
+
 ## Delivery surface
 
 - Use a native OpenSAT practice interface when one is available.

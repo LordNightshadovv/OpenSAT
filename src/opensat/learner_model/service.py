@@ -660,6 +660,8 @@ class LabService:
         computed_load = profile_surface_load(body_text, table, options, stimulus_text)
         if surface_load != computed_load:
             raise ValueError("surface_load does not match the final generated item text; rerun profile_item_load")
+        if validation_status == "approved" and computed_load["body"]["stimulus_disclosure_flags"]:
+            raise ValueError("approved generated item discloses a contrast the learner should infer; revise the stimulus")
         exposure_history = list(exposure_history or [])
         ensure_safe_metadata(exposure_history)
         connection, _ = self._open()

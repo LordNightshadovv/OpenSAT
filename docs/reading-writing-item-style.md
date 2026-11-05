@@ -65,7 +65,13 @@ A hard item is not hard merely because the stimulus is dense. It must create a p
 - Do not make the correct answer the only cautious, comprehensive, or detailed choice.
 - Make the remaining distractors locally plausible; obvious contradictions and unrelated filler cannot carry the item.
 - State the mutation for every wrong choice and the smallest textual or structural fact that defeats the dominant distractor.
+- Minimize that fact: remove each proposed supporting detail in turn and retain the smallest sufficient constraint. One qualifier or relation may suffice; if the choice survives it, revise the choice.
+- Generate candidate choices from a plausible fast-reader misreading and a single semantic mutation of the key, then blind-solve and run a choices-only form check. Model confidence is not a difficulty score.
 - Independently solve the item without trusting the proposed key. If two options remain defensible after applying the exact stem operation, revise or reject it.
+
+### Stimulus non-disclosure
+
+Do not put a self-defensive or clarificatory sentence in a generated passage or student notes to preempt an alternative reading. Do not state what an author does not claim, explain why a tempting inference does not follow, or rebut a distractor in the stimulus. The learner must make that distinction. A short definition of a niche term needed for comprehension is the sole exception. Check the final stimulus directly and inspect `profile_item_load.body.stimulus_disclosure_flags`; any flag requires revision before approval. The explicit `stimulus_non_disclosure_check` remains necessary because simple patterns miss subtler giveaways.
 
 For a fluent 750–800 learner, prefer a routine-looking passage with a concealed scope, warrant, comparison, function, goal, or controller distinction over an intimidating passage with three easy eliminations.
 
@@ -81,6 +87,7 @@ Before approval, independently solve the item, verify exactly one defensible ans
 
 - `college_board_style_check`: the item follows the target blueprint and public stem family;
 - `difficulty_mechanism_check`: the claimed difficulty is visible in the reasoning, not cosmetic;
+- `stimulus_non_disclosure_check`: the stimulus does not explain away a tempting inference or disclose the answer boundary;
 - `rhetorical_synthesis_scenario_check` for Rhetorical Synthesis items: the student-notes scenario and writerly goal are both present.
 
 If any gate fails, revise or reject the item. Always display the OpenSAT simulated-item label.

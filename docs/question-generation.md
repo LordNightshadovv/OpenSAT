@@ -17,6 +17,7 @@ Start with a structured specification containing:
 - passage/stimulus constraints;
 - correct-answer rationale;
 - distractor mechanisms;
+- for each wrong choice, the plausible misreading and minimum sufficient passage constraint that defeats it;
 - one or more substantive difficulty mechanisms;
 - public style-reference identifiers, never copied source content;
 - timing expectation;
@@ -24,6 +25,17 @@ Start with a structured specification containing:
 - transfer distance from recent practice.
 
 ## Independent gates
+
+For hard items, build a pool of plausible wrong choices before selecting the final three:
+
+1. Extract abstract trap mechanisms from reviewed same-family questions. Record each wrong choice's semantic mutation and the exact word, relation, scope, or comparison that defeats it. Never transfer source wording.
+2. Make near-neighbors by changing one semantic feature of the key, such as degree, agent, direction, time, or comparison group. Verify the change actually makes the choice wrong under the stem.
+3. Simulate a plausible fast-reader mistake, such as overlooking a pivot or confusing two referents, and draft the answer that mistake would produce. This generates candidates; it does not show that a real learner would pick them.
+4. Find the *minimum sufficient constraint* that defeats each candidate. Remove each cited fact in turn; if the choice still fails, that fact was unnecessary. The closest wrong choice should survive gist reading and fail on a small, decisive distinction. Reject any item with two defensible keys.
+5. Have a fresh solver answer the complete item without its key and give brief reasons for eliminations. Prefer a different model or context when available. Fast dismissal, uncertainty, and long reasoning prioritize review, but model confidence and latency are not student difficulty measures.
+6. Inspect the choices alone. If length, tone, grammar, specificity, or qualification reveals the likely key, rewrite them, then repeat the full-item solve.
+
+**Stimulus non-disclosure rule:** Present facts, evidence, and relationships naturally. Do not tell the learner which interpretation to reject, what the author does not claim, why a tempting alternative fails, or what inference a fact cannot support. Do not add editorial caveats, self-justifications, or defensive clarification to protect the intended key. Only a concise definition of a niche term needed for understanding may clarify the stimulus. Preserve qualifications that genuinely belong to the proposition without spelling out the answer. Run `profile_item_load` on the final displayed text; a nonempty `body.stimulus_disclosure_flags` blocks approval until revision. The required `stimulus_non_disclosure_check` is a separate review because pattern screening misses subtler disclosures.
 
 Run these as separate logical stages, even if one model executes them in the first version:
 

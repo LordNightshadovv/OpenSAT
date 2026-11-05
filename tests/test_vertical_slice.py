@@ -694,6 +694,7 @@ class VerticalSliceTests(unittest.TestCase):
             "option_defensibility": {"A": False, "B": False, "C": True, "D": False},
             "shortcut_check": True,
             "wording_check": True,
+            "stimulus_non_disclosure_check": True,
             "difficulty_check": True,
             "college_board_style_check": True,
             "difficulty_mechanism_check": True,
@@ -736,6 +737,34 @@ class VerticalSliceTests(unittest.TestCase):
         )
         self.assertEqual(separated["body"]["reading_features"]["text_scope"], "stimulus_only")
         self.assertEqual(separated["body"]["reading_features"]["syntax_cues"]["mean_words_per_sentence"], 6)
+
+    def test_generated_stimulus_rejects_inference_disclosure_but_allows_term_definition(self) -> None:
+        options = ["One result.", "Another result.", "A third result.", "A final result."]
+        stimulus = (
+            "The scholar does not claim that every trial improved. "
+            "That observation would not by itself prove the treatment worked."
+        )
+        body_text = stimulus + " Which finding supports the claim?"
+        surface_load = profile_surface_load(body_text, None, options, stimulus)
+        self.assertIn("authorial_claim_disclaimer", surface_load["body"]["stimulus_disclosure_flags"])
+        self.assertIn("inference_spelled_out", surface_load["body"]["stimulus_disclosure_flags"])
+        with self.assertRaisesRegex(ValueError, "discloses a contrast"):
+            self.service.record_generated_item(
+                learner_id=self.learner_id,
+                provider="local-synthetic-fixture",
+                target_skill="command_of_evidence_textual",
+                intended_difficulty="hard",
+                validation_status="approved",
+                item_version="disclosure-fixture",
+                specification={"synthetic": True, "surface_load": surface_load},
+                body_text=body_text,
+                table=None,
+                options=options,
+                stimulus_text=stimulus,
+            )
+        definition = "Littoral means relating to a shore. The survey recorded changes in sediment depth."
+        clean = profile_surface_load(definition, None, options, definition)
+        self.assertEqual(clean["body"]["stimulus_disclosure_flags"], [])
 
     def test_hard_item_fidelity_profile_rejects_underloaded_surface_and_reasoning(self) -> None:
         specification = ItemSpecification(
@@ -786,6 +815,7 @@ class VerticalSliceTests(unittest.TestCase):
             "option_defensibility": {"A": False, "B": True, "C": False, "D": False},
             "shortcut_check": True,
             "wording_check": True,
+            "stimulus_non_disclosure_check": True,
             "difficulty_check": True,
             "college_board_style_check": True,
             "difficulty_mechanism_check": True,

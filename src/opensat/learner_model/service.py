@@ -26,6 +26,8 @@ from ..domain.constants import (
     PILOT_BANDS,
     PROVENANCE_TYPES,
     QUESTION_RESULTS,
+    RW_FOCUS_ORGANIZATIONS,
+    RW_REASONING_FOCUSES,
     SIMULATED_LABEL,
     SKILL_STAGES,
     TRANSFER_DISTANCES,
@@ -187,13 +189,14 @@ class LabService:
                 "reading_writing_score": reading_writing_score,
                 "math_score": math_score,
                 "total_score": total_score,
+                "score_band_basis": "reading_writing" if reading_writing_score is not None else "unknown_reading_writing",
             }
         )
         ensure_safe_metadata(score_context)
         accessibility_preferences = dict(accessibility_preferences or {})
         ensure_safe_metadata(accessibility_preferences)
-        score_for_band = reading_writing_score or total_score
-        band = band_for_score(score_for_band)
+        # Overall and Math scores are not proxies for Reading and Writing.
+        band = band_for_score(reading_writing_score)
         learner_id = learner_id or _id("learner")
         now = utc_now()
         connection, _ = self._open()
@@ -229,6 +232,42 @@ class LabService:
         result = _row(connection.execute("SELECT * FROM learners WHERE learner_id = ?", (learner_id,)).fetchone())
         if result is None:
             raise ValueError(f"Unknown learner: {learner_id}")
+        score_context = dict(result.get("score_context", {}))
+        if (
+            score_context.get("reading_writing_score") is None
+            and score_context.get("score_band_basis") != "learner_selected"
+        ):
+            prior_rw = connection.execute(
+                """SELECT reading_writing_score FROM assessments
+                   WHERE learner_id = ? AND reading_writing_score IS NOT NULL
+                   ORDER BY (taken_at IS NULL), taken_at DESC, created_at DESC LIMIT 1""",
+                (learner_id,),
+            ).fetchone()
+            if prior_rw is not None:
+                score_context["reading_writing_score"] = prior_rw["reading_writing_score"]
+                score_context["score_band_basis"] = "reading_writing"
+                result["score_context"] = score_context
+                result["score_band_prior"] = band_for_score(prior_rw["reading_writing_score"])
+        # Older profiles could have been banded from total_score. Present a
+        # corrected view without turning an ordinary read into a database write.
+        if (
+            score_context.get("reading_writing_score") is None
+            and score_context.get("score_band_basis") not in ("learner_selected", "reading_writing")
+        ):
+            score_context["score_band_basis"] = "unknown_reading_writing"
+            result["score_band_prior"] = band_for_score(None)
+            result["score_context"] = score_context
+        result["focus_organization_options"] = list(RW_FOCUS_ORGANIZATIONS)
+        result["focus_choice_order"] = [
+            "learner_goals_and_mistakes_first",
+            "original_calibration_if_evidence_is_absent",
+            "optional_seven_mechanism_framework",
+            "other_organizing_lenses",
+        ]
+        result["focus_mechanism_options"] = [
+            {"id": key, "description": description}
+            for key, description in RW_REASONING_FOCUSES.items()
+        ]
         result["user_band_label"] = {
             "600-640": "600–650",
             "650-690": "650–700",
@@ -265,6 +304,17 @@ class LabService:
         if practice_preferences is not None:
             practice_preferences = dict(practice_preferences)
             ensure_safe_metadata(practice_preferences)
+            focus = practice_preferences.get("focus_preferences")
+            if focus is not None:
+                if not isinstance(focus, dict):
+                    raise ValueError("focus_preferences must be an object")
+                organization = focus.get("organization")
+                if organization is not None and organization not in RW_FOCUS_ORGANIZATIONS:
+                    raise ValueError(f"focus organization must be one of {RW_FOCUS_ORGANIZATIONS}")
+                mechanisms = focus.get("mechanisms")
+                if mechanisms is not None:
+                    if not isinstance(mechanisms, list) or any(item not in RW_REASONING_FOCUSES for item in mechanisms):
+                        raise ValueError("focus mechanisms must be selected from the seven supported reasoning mechanisms")
             grouping = practice_preferences.get("purpose_groups")
             if grouping is not None:
                 if not isinstance(grouping, dict):
@@ -285,7 +335,20 @@ class LabService:
             accessibility = dict(profile.get("accessibility_preferences", {}))
             if practice_preferences is not None:
                 current_practice = dict(accessibility.get("practice", {}))
-                current_practice.update(practice_preferences)
+                next_preferences = dict(practice_preferences)
+                if isinstance(next_preferences.get("focus_preferences"), dict):
+                    current_focus = dict(current_practice.get("focus_preferences", {}))
+                    requested_focus = dict(next_preferences["focus_preferences"])
+                    organization = requested_focus.get("organization", current_focus.get("organization"))
+                    if organization != current_focus.get("organization"):
+                        current_focus = {"organization": organization}
+                        if organization == "mechanisms":
+                            current_focus["mechanisms"] = requested_focus.get("mechanisms", [])
+                        elif organization == "official_domain_skill":
+                            current_focus["skills"] = requested_focus.get("skills", [])
+                    current_focus.update(requested_focus)
+                    next_preferences["focus_preferences"] = current_focus
+                current_practice.update(next_preferences)
                 accessibility["practice"] = current_practice
             next_test_date = test_date if test_date is not None else profile.get("test_date")
             next_length = session_length_preference if session_length_preference is not None else profile["session_length_preference"]
@@ -363,9 +426,15 @@ class LabService:
                 ),
             )
             if reading_writing_score is not None:
+                profile = self._get_learner(connection, learner_id)
+                score_context = dict(profile.get("score_context", {}))
+                score_context.update({
+                    "reading_writing_score": reading_writing_score,
+                    "score_band_basis": "reading_writing",
+                })
                 connection.execute(
-                    "UPDATE learners SET score_band_prior = ?, updated_at = ? WHERE learner_id = ?",
-                    (band_for_score(reading_writing_score), utc_now(), learner_id),
+                    "UPDATE learners SET score_context_json = ?, score_band_prior = ?, updated_at = ? WHERE learner_id = ?",
+                    (_json(score_context), band_for_score(reading_writing_score), utc_now(), learner_id),
                 )
             connection.commit()
             return {
@@ -1134,19 +1203,82 @@ class LabService:
             plan = build_daily_plan(band, session_mode=session_mode)
             difficulty = self._difficulty_recommendation(connection, learner_id, band)
             session_start = self._session_start_context(connection, learner_id, band)
+            practice = profile.get("accessibility_preferences", {}).get("practice", {})
+            focus_preferences = dict(practice.get("focus_preferences", {}))
+            rw_score = profile.get("score_context", {}).get("reading_writing_score")
+            if focus_preferences:
+                focus_policy = {
+                    "source": "explicit_learner_preference",
+                    "organization": focus_preferences.get("organization"),
+                    "mechanisms": focus_preferences.get("mechanisms", []),
+                    "skills": focus_preferences.get("skills", []),
+                }
+            else:
+                focus_policy = {
+                    "source": "adaptive_default",
+                    "organization": "mechanisms",
+                    "mechanisms": [],
+                }
+            focus_policy["sequence"] = ["recent_misses_and_uncertain_or_fragile_corrects_first"]
+            if isinstance(rw_score, int) and rw_score >= 780:
+                focus_policy["sequence"].extend([
+                    "schedule_evidence_supported_weakness_work",
+                    "delayed_transfer_of_that_weakness",
+                    "mixed_broad_skills_to_detect_emerging_weaknesses",
+                ])
+            else:
+                focus_policy["sequence"].append("use_a_selected_or_evidence_supported_focus")
+            learner_targets: list[dict[str, str]] = []
+            seen_targets: set[str] = set()
+            for skill in difficulty.get("priority_skills", []):
+                if skill not in seen_targets:
+                    learner_targets.append({"target": skill, "evidence": "recent_incorrect_or_omitted"})
+                    seen_targets.add(skill)
+            for review in session_start.get("due_reviews", []):
+                skill = review.get("skill") or review.get("provisional_skill")
+                if skill and skill not in seen_targets:
+                    learner_targets.append({"target": skill, "evidence": "due_review"})
+                    seen_targets.add(skill)
+            focus_policy["learner_specific_targets"] = learner_targets
+            focus_policy["focus_choice_order"] = [
+                "learner_specific_targets_first",
+                "optional_seven_mechanism_framework",
+                "other_organizing_lenses",
+            ]
+            focus_policy["when_evidence_is_absent"] = (
+                "ask_for_the_learners_goals_or_mistakes_or_offer_original_calibration;_do_not_invent_personalized_mechanisms"
+                if not learner_targets
+                else None
+            )
+            domains = [
+                "Information and Ideas",
+                "Craft and Structure",
+                "Expression of Ideas",
+                "Standard English Conventions",
+            ]
+            prior_sessions = connection.execute(
+                "SELECT COUNT(*) FROM sessions WHERE learner_id = ?", (learner_id,)
+            ).fetchone()[0]
+            focus_policy["mixed_discovery_domain"] = domains[prior_sessions % len(domains)]
+            focus_policy["evidence_guidance"] = {
+                "prioritize": ["incorrect", "omitted", "slow_correct", "uncertain_correct", "changed_answer", "help_dependent"],
+                "transfer": "near_or_far_after_a_delay_according_to_evidence_and_due_reviews",
+                "mixed_discovery": "rotate_the_four_domains_across_sessions_when_no_higher_priority_due_review_displaces_it",
+            }
             session_id = _id("session")
             now = utc_now()
             connection.execute(
                 """INSERT INTO sessions
                 (session_id, learner_id, planned_minutes, actual_minutes, band,
-                 activities_json, results_json, fatigue, completed, created_at, updated_at)
-                VALUES (?, ?, ?, NULL, ?, ?, '[]', NULL, 0, ?, ?)""",
-                (session_id, learner_id, plan.planned_minutes, band, _json(plan.as_dict()["activities"]), now, now),
+                 activities_json, focus_policy_json, results_json, fatigue, completed, created_at, updated_at)
+                VALUES (?, ?, ?, NULL, ?, ?, ?, '[]', NULL, 0, ?, ?)""",
+                (session_id, learner_id, plan.planned_minutes, band, _json(plan.as_dict()["activities"]), _json(focus_policy), now, now),
             )
             connection.commit()
             return {
                 "session_id": session_id,
                 "plan": plan.as_dict(),
+                "focus_policy": focus_policy,
                 "difficulty_recommendation": difficulty,
                 "session_start_context": session_start,
                 "stored": True,

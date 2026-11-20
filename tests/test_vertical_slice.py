@@ -81,7 +81,7 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertTrue(paths.database.exists())
         connection, _ = connect(self.data_dir)
         try:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
             self.assertIsNotNone(connection.execute("SELECT 1 FROM learners LIMIT 1").fetchone())
         finally:
             connection.close()
@@ -100,6 +100,7 @@ class VerticalSliceTests(unittest.TestCase):
         paths = ensure_data_layout(self.data_dir / "migration-v1")
         old = sqlite3.connect(paths.database)
         old.execute("CREATE TABLE question_events (event_id TEXT PRIMARY KEY)")
+        old.execute("CREATE TABLE sessions (session_id TEXT PRIMARY KEY)")
         old.execute("PRAGMA user_version = 1")
         old.commit()
         old.close()
@@ -107,7 +108,9 @@ class VerticalSliceTests(unittest.TestCase):
         try:
             columns = {row[1] for row in connection.execute("PRAGMA table_info(question_events)")}
             self.assertIn("apparent_difficulty", columns)
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+            session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
+            self.assertIn("focus_policy_json", session_columns)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
         finally:
             connection.close()
         self.assertTrue(list(paths.backups.glob("opensat_pre_migration_v1_*.sqlite3")))
@@ -152,6 +155,226 @@ class VerticalSliceTests(unittest.TestCase):
                 learner_id=self.learner_id,
                 practice_preferences={"purpose_groups": {"preferred_min": 3, "preferred_max": 4, "max_questions_per_group": 5}},
             )
+
+    def test_onboarding_uses_rw_score_only_and_accepts_unknown(self) -> None:
+        unknown = self.service.initialize_learner(
+            preferred_language="english", total_score=1580, math_score=800,
+        )["learner"]
+        self.assertEqual(unknown["score_band_prior"], "650-690")
+        self.assertEqual(unknown["score_context"]["score_band_basis"], "unknown_reading_writing")
+        self.assertEqual(len(unknown["focus_mechanism_options"]), 7)
+        self.assertEqual(unknown["focus_mechanism_options"][0]["id"], "true_but_task_wrong")
+        self.assertEqual(unknown["focus_organization_options"], ["mechanisms", "official_domain_skill", "error_process", "timing_confidence"])
+        self.assertEqual(unknown["focus_choice_order"], [
+            "learner_goals_and_mistakes_first",
+            "original_calibration_if_evidence_is_absent",
+            "optional_seven_mechanism_framework",
+            "other_organizing_lenses",
+        ])
+        high = self.service.initialize_learner(
+            preferred_language="english", reading_writing_score=785,
+            total_score=1580, math_score=800,
+        )["learner"]
+        self.assertEqual(high["score_band_prior"], "750-800")
+        self.assertEqual(high["score_context"]["score_band_basis"], "reading_writing")
+
+    def test_legacy_total_only_prior_is_rebased_but_selected_basis_is_preserved(self) -> None:
+        legacy = self.service.initialize_learner(
+            preferred_language="english", learner_id="legacy-total",
+            reading_writing_score=None, total_score=1500,
+        )["learner"]
+        connection, _ = connect(self.data_dir)
+        try:
+            connection.execute(
+                "UPDATE learners SET score_band_prior = ?, score_context_json = ? WHERE learner_id = ?",
+                ("750-800", json.dumps({"reading_writing_score": None, "math_score": None, "total_score": 1500}), "legacy-total"),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        connection, _ = connect(self.data_dir)
+        before_read = connection.execute(
+            "SELECT score_band_prior, score_context_json, updated_at FROM learners WHERE learner_id = ?",
+            ("legacy-total",),
+        ).fetchone()
+        repaired = self.service.get_learner_profile("legacy-total")
+        self.assertEqual(repaired["score_band_prior"], "650-690")
+        self.assertEqual(repaired["score_context"]["score_band_basis"], "unknown_reading_writing")
+        self.assertEqual(repaired["score_context"]["total_score"], 1500)
+        self.service.get_learner_profile("legacy-total")
+        after_read = connection.execute(
+            "SELECT score_band_prior, score_context_json, updated_at FROM learners WHERE learner_id = ?",
+            ("legacy-total",),
+        ).fetchone()
+        self.assertEqual(tuple(after_read), tuple(before_read))
+        connection.close()
+        connection, _ = connect(self.data_dir)
+        try:
+            connection.execute(
+                "UPDATE learners SET score_band_prior = ?, score_context_json = ? WHERE learner_id = ?",
+                ("700-740", json.dumps({"reading_writing_score": None, "total_score": 1500, "score_band_basis": "learner_selected"}), "legacy-total"),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        self.assertEqual(self.service.get_learner_profile("legacy-total")["score_band_prior"], "700-740")
+
+    def test_legacy_score_read_repairs_view_without_writing_and_uses_historical_rw_assessment(self) -> None:
+        learner = self.service.initialize_learner(
+            preferred_language="english", learner_id="legacy-read", total_score=1500,
+        )["learner"]
+        self.service.record_assessment(
+            learner_id=learner["learner_id"], source="manual", assessment_type="practice",
+            external_id="old-rw", is_official=True, reading_writing_score=790,
+        )
+        connection, _ = connect(self.data_dir)
+        try:
+            connection.execute(
+                "UPDATE learners SET score_band_prior = ?, score_context_json = ? WHERE learner_id = ?",
+                ("700-740", json.dumps({"reading_writing_score": None, "total_score": 1500}), "legacy-read"),
+            )
+            connection.commit()
+            before = connection.execute(
+                "SELECT score_band_prior, score_context_json, updated_at FROM learners WHERE learner_id = ?",
+                ("legacy-read",),
+            ).fetchone()
+        finally:
+            connection.close()
+        for _ in range(2):
+            profile = self.service.get_learner_profile("legacy-read")
+            self.assertEqual(profile["score_band_prior"], "750-800")
+            self.assertEqual(profile["score_context"]["reading_writing_score"], 790)
+        connection, _ = connect(self.data_dir)
+        try:
+            after = connection.execute(
+                "SELECT score_band_prior, score_context_json, updated_at FROM learners WHERE learner_id = ?",
+                ("legacy-read",),
+            ).fetchone()
+        finally:
+            connection.close()
+        self.assertEqual(tuple(after), tuple(before))
+
+        assessed = self.service.initialize_learner(
+            preferred_language="english", learner_id="legacy-assessment", total_score=1450,
+        )["learner"]
+        self.service.record_assessment(
+            learner_id=assessed["learner_id"], source="manual", assessment_type="practice",
+            external_id="prior-rw", is_official=True, reading_writing_score=785,
+        )
+        connection, _ = connect(self.data_dir)
+        try:
+            connection.execute(
+                "UPDATE learners SET score_band_prior = ?, score_context_json = ? WHERE learner_id = ?",
+                ("700-740", json.dumps({"reading_writing_score": None, "total_score": 1450}), "legacy-assessment"),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        restored = self.service.get_learner_profile("legacy-assessment")
+        self.assertEqual(restored["score_band_prior"], "750-800")
+        self.assertEqual(restored["score_context"]["reading_writing_score"], 785)
+
+    def test_focus_preferences_persist_and_780_plus_runtime_policy_is_specific(self) -> None:
+        high = self.service.initialize_learner(
+            preferred_language="english", reading_writing_score=790,
+        )["learner"]
+        learner_id = high["learner_id"]
+        mechanism = "scope_strength_causality"
+        stored = self.service.update_learner_preferences(
+            learner_id=learner_id,
+            practice_preferences={"focus_preferences": {"organization": "mechanisms", "mechanisms": [mechanism]}},
+        )["learner"]
+        self.assertEqual(stored["accessibility_preferences"]["practice"]["focus_preferences"]["mechanisms"], [mechanism])
+        session = self.service.build_daily_session(learner_id)
+        self.assertEqual(session["focus_policy"]["source"], "explicit_learner_preference")
+        self.assertEqual(session["focus_policy"]["mechanisms"], [mechanism])
+        self.assertEqual(session["focus_policy"]["sequence"], [
+            "recent_misses_and_uncertain_or_fragile_corrects_first",
+            "schedule_evidence_supported_weakness_work",
+            "delayed_transfer_of_that_weakness",
+            "mixed_broad_skills_to_detect_emerging_weaknesses",
+        ])
+        self.assertEqual(session["focus_policy"]["mixed_discovery_domain"], "Information and Ideas")
+        self.assertEqual(session["focus_policy"]["evidence_guidance"]["prioritize"][0], "incorrect")
+        self.assertEqual(session["plan"]["planned_minutes"], 20)
+        connection, _ = connect(self.data_dir)
+        try:
+            saved = connection.execute("SELECT focus_policy_json FROM sessions WHERE session_id = ?", (session["session_id"],)).fetchone()
+        finally:
+            connection.close()
+        self.assertEqual(json.loads(saved[0])["mechanisms"], [mechanism])
+        switched = self.service.update_learner_preferences(
+            learner_id=learner_id,
+            practice_preferences={"focus_preferences": {"organization": "error_process"}, "difficulty_center": "hard"},
+        )["learner"]["accessibility_preferences"]["practice"]
+        self.assertEqual(switched["focus_preferences"]["organization"], "error_process")
+        self.assertNotIn("mechanisms", switched["focus_preferences"])
+        self.assertEqual(switched["difficulty_center"], "hard")
+
+        high2 = self.service.initialize_learner(
+            preferred_language="english", reading_writing_score=780,
+        )["learner"]
+        default_policy = self.service.build_daily_session(high2["learner_id"])["focus_policy"]
+        self.assertEqual(default_policy["source"], "adaptive_default")
+        self.assertEqual(default_policy["learner_specific_targets"], [])
+        self.assertEqual(default_policy["focus_choice_order"], [
+            "learner_specific_targets_first",
+            "optional_seven_mechanism_framework",
+            "other_organizing_lenses",
+        ])
+        self.assertIn("offer_original_calibration", default_policy["when_evidence_is_absent"])
+        self.assertEqual(default_policy["sequence"], [
+            "recent_misses_and_uncertain_or_fragile_corrects_first",
+            "schedule_evidence_supported_weakness_work",
+            "delayed_transfer_of_that_weakness",
+            "mixed_broad_skills_to_detect_emerging_weaknesses",
+        ])
+        target_assessment = self.service.record_assessment(
+            learner_id=high2["learner_id"], source="manual", assessment_type="practice",
+            external_id="target-evidence", is_official=False, reading_writing_score=780,
+        )
+        self.service.record_question_event(
+            learner_id=high2["learner_id"], assessment_id=target_assessment["assessment"]["assessment_id"],
+            event_key="target-transition-miss", section="reading-writing", module="module-1",
+            question_locator="synthetic-transition", result="incorrect", provenance_type="simulated",
+            provisional_skill="transitions",
+        )
+        evidence_policy = self.service.build_daily_session(high2["learner_id"])["focus_policy"]
+        self.assertEqual(evidence_policy["learner_specific_targets"], [
+            {"target": "transitions", "evidence": "recent_incorrect_or_omitted"},
+        ])
+        self.assertIsNone(evidence_policy["when_evidence_is_absent"])
+
+        score_760 = self.service.initialize_learner(
+            preferred_language="english", reading_writing_score=760,
+        )["learner"]
+        policy_760 = self.service.build_daily_session(score_760["learner_id"])["focus_policy"]
+        self.assertNotIn("mixed_broad_skills_to_detect_emerging_weaknesses", policy_760["sequence"])
+
+        domains = ["Information and Ideas", "Craft and Structure", "Expression of Ideas", "Standard English Conventions"]
+        rotated = [self.service.build_daily_session(high2["learner_id"])["focus_policy"]["mixed_discovery_domain"] for _ in range(3)]
+        self.assertEqual(rotated, domains[2:] + domains[:1])
+
+    def test_focus_preferences_validate_supported_mechanism(self) -> None:
+        with self.assertRaisesRegex(ValueError, "seven supported"):
+            self.service.update_learner_preferences(
+                learner_id=self.learner_id,
+                practice_preferences={"focus_preferences": {"organization": "mechanisms", "mechanisms": ["not_a_mechanism"]}},
+            )
+
+    def test_recorded_rw_assessment_updates_onboarding_band_basis(self) -> None:
+        unknown = self.service.initialize_learner(
+            preferred_language="english", total_score=1450, math_score=750,
+        )["learner"]
+        learner_id = unknown["learner_id"]
+        self.service.record_assessment(
+            learner_id=learner_id, source="manual", assessment_type="practice",
+            external_id="rw-follow-up", is_official=False, reading_writing_score=785,
+        )
+        updated = self.service.get_learner_profile(learner_id)
+        self.assertEqual(updated["score_band_prior"], "750-800")
+        self.assertEqual(updated["score_context"]["reading_writing_score"], 785)
+        self.assertEqual(updated["score_context"]["score_band_basis"], "reading_writing")
 
     def test_practice_import_cursor_and_generated_item_provenance(self) -> None:
         started = self.service.begin_practice_import(

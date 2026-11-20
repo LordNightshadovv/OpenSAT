@@ -1,18 +1,16 @@
 # Reading and Writing item-style contract
 
-This contract governs wholly original OpenSAT items. It uses College Board's public framework to match the assessed operation, stimulus form, stem family, and distractor logic. It does **not** authorize copying, lightly paraphrasing, or storing official questions. Third-party difficult-question collections may inform abstract difficulty mechanisms only.
+This contract governs wholly original OpenSAT items. It uses College Board's public framework and permitted public pattern research to match the assessed operation, stimulus form, stem family, and distractor logic. It does **not** authorize searching, fetching, caching, mirroring, replicating, copying, lightly paraphrasing, or storing official College Board Student Question Bank or other official question-bank items. A learner's separate hard-problem compilation is not a direct-practice source or a fidelity-calibration cohort. Fully local, reviewed reconstructed past-paper references may be used transiently for direct practice and as reviewed calibration anchors under [`item-fidelity.md`](item-fidelity.md). Third-party public material may inform abstract difficulty mechanisms only.
 
 For inspectable examples of these operations and their plausible wrong-answer mechanisms, read [`public-question-patterns-2026.md`](public-question-patterns-2026.md). Its recalled-item leads are unverified and cannot supply an answer key. Transfer only the abstract constraint into a new item.
 
 ## Authoritative public references
 
-- [College Board Student Question Bank: Reading and Writing question stems](https://satsuite.collegeboard.org/practice/student-question-bank/reading-writing)
 - [College Board Reading and Writing section overview](https://satsuite.collegeboard.org/sat/whats-on-the-test/reading-writing)
 - [College Board SAT Suite content domains](https://satsuite.collegeboard.org/higher-ed-professionals/sat-validity/content-domains)
-- [College Board Educator Question Bank help and filters](https://satsuiteeducatorquestionbank.collegeboard.org/help)
 - [College Board report on cognitively complex digital SAT questions](https://satsuite.collegeboard.org/media/pdf/digital-sat-cognitive-lab-report.pdf)
 
-Recheck these public sources when the specification changes. Record only reference identifiers and derived design rules in item metadata, never official prompts, passages, choices, or rationales.
+Recheck permitted public framework and pattern sources when the specification changes. Do not access official question-bank pages or filters. Record only public reference identifiers and derived design rules in item metadata, never prompts, passages, choices, displays, or rationales.
 
 ## Global form
 
@@ -79,7 +77,7 @@ For a fluent 750–800 learner, prefer a routine-looking passage with a conceale
 
 For a hard simulation calibrated from references, follow [`item-fidelity.md`](item-fidelity.md). Match a cohort across body structure, display dimensions, reasoning operations, option competition, and expected total response time. Word count alone is insufficient, and irrelevant padding does not count. The computed metrics are surface-load proxies, not comprehension difficulty or psychometric equivalence.
 
-A learner-supplied seven-type taxonomy and its past-paper/hard-set anchors is a candidate watchlist: it can guide archive review and mixed calibration, but it is not a universal focus plan. Recurring focus requires that learner's own item-level and transfer evidence.
+A learner-supplied seven-type taxonomy and fully local reviewed reconstructed past-paper references can form a candidate watchlist: they can guide permitted direct archive review and mixed calibration, but they are not a universal focus plan. A separate hard-problem compilation is excluded from direct practice and fidelity calibration. Recurring focus requires that learner's own item-level and transfer evidence.
 
 ## Originality and quality gates
 

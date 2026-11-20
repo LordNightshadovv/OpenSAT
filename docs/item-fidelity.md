@@ -4,13 +4,13 @@ Item fidelity means matching the reading-to-answer work of a reviewed question f
 
 ## Candidate watchlists are not universal diagnoses
 
-A learner-supplied taxonomy—such as seven focus types—and its past-paper or hard-set references is a useful candidate watchlist. It can organize archive review, seed mixed calibration, and identify mechanisms worth testing. It must not become every learner's default curriculum.
+A learner-supplied taxonomy—such as seven focus types—and fully local, visually reviewed reconstructed past-paper references may form a candidate watchlist. Such reviewed references can support transient direct practice and, when at least three same-family questions are visually reviewed, a calibration cohort. They must not become every learner's default curriculum. A separate hard-problem compilation is excluded from direct practice and fidelity calibration; do not treat it as an approved anchor set.
 
 Promote a watchlist type to a recurring learner focus only when item-level evidence supports it: errors or omissions, slow correct responses, low confidence, answer changes, help dependence, apparent-difficulty mismatch, or weak near/far transfer. Keep the type provisional when evidence is sparse or comes from one item.
 
 ## Calibration cohort
 
-Before declaring a hard simulation fidelity-calibrated, visually review at least three source questions from the same skill and display family. Record only abstract measurements and source locators; never copy source text, choices, displays, or rationales into the plugin repository. Calibrate to the cohort, not one question, and keep provenance tiers separate.
+Before declaring a hard simulation fidelity-calibrated, visually review at least three permitted, fully local reconstructed past-paper questions from the same skill and display family. Record only abstract measurements and source locators; never copy source text, choices, displays, or rationales into the plugin repository. Do not search, fetch, cache, mirror, or replicate official College Board Student Question Bank or other official question-bank items for calibration. Do not calibrate from the learner's separate hard-problem compilation. Calibrate to the reviewed cohort, not one question, and keep provenance tiers separate.
 
 ## Multi-proxy profile
 

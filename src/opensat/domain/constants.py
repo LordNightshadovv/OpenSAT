@@ -32,6 +32,18 @@ TRANSFER_DISTANCES = ("near", "mid", "far")
 APPARENT_DIFFICULTY_TAGS = ("routine", "noticeable", "intimidating")
 SIMULATED_LABEL = "Simulated SAT-style practice — not an official College Board question"
 
+# Ordered learner-facing choices for organizing Reading and Writing evidence.
+RW_REASONING_FOCUSES = {
+    "true_but_task_wrong": "True-but-task-wrong evidence: the choice is supported but does not answer the exact question.",
+    "scope_strength_causality": "Scope, strength, and causality: a claim is too broad, too strong, or makes an unsupported causal leap.",
+    "comparison_control_denominator_direction": "Comparison, control, denominator, and direction: the groups, baseline, quantity, or direction of a comparison is misread.",
+    "rhetorical_function_vs_content": "Rhetorical function versus content: the choice repeats what a sentence says but misses what it does in the passage.",
+    "cross_text_overreaction": "Cross-text overreaction: a relationship between the texts is overstated or a real disagreement is flattened.",
+    "rhetorical_synthesis_goal_drift": "Rhetorical synthesis goal drift: the response uses relevant facts but fails the requested purpose or audience goal.",
+    "syntactic_proximity": "Syntactic proximity: a nearby word or phrase is attached to the wrong clause, modifier, or relationship.",
+}
+RW_FOCUS_ORGANIZATIONS = ("mechanisms", "official_domain_skill", "error_process", "timing_confidence")
+
 
 ERROR_SIGNATURES = {
     "qualifier_omission": "Misses a limiting word, condition, or qualifier.",

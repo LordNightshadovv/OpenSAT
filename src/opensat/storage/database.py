@@ -10,7 +10,7 @@ from pathlib import Path
 from ..privacy.paths import DataPaths, ensure_data_layout
 
 
-LATEST_SCHEMA_VERSION = 2
+LATEST_SCHEMA_VERSION = 3
 
 
 SCHEMA_SQL = """
@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     actual_minutes INTEGER,
     band TEXT NOT NULL,
     activities_json TEXT NOT NULL,
+    focus_policy_json TEXT NOT NULL DEFAULT '{}',
     results_json TEXT NOT NULL,
     fatigue TEXT,
     completed INTEGER NOT NULL DEFAULT 0,
@@ -194,6 +195,10 @@ MIGRATION_2_SQL = """
 ALTER TABLE question_events ADD COLUMN apparent_difficulty TEXT;
 """
 
+MIGRATION_3_SQL = """
+ALTER TABLE sessions ADD COLUMN focus_policy_json TEXT NOT NULL DEFAULT '{}';
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -216,10 +221,15 @@ def connect(data_dir: Path | None = None) -> tuple[sqlite3.Connection, DataPaths
     _backup_before_migration(paths, current_version)
     if current_version < 1:
         connection.executescript(SCHEMA_SQL)
-        connection.execute("PRAGMA user_version = 2")
-    elif current_version < 2:
+        connection.execute(f"PRAGMA user_version = {LATEST_SCHEMA_VERSION}")
+        current_version = LATEST_SCHEMA_VERSION
+    if current_version < 2:
         connection.executescript(MIGRATION_2_SQL)
         connection.execute("PRAGMA user_version = 2")
+        current_version = 2
+    if current_version < 3:
+        connection.executescript(MIGRATION_3_SQL)
+        connection.execute("PRAGMA user_version = 3")
     connection.commit()
     try:
         paths.database.chmod(0o600)
